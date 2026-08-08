@@ -1,0 +1,44 @@
+﻿import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '../stores/auth.js'
+
+const routes = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/LoginPage.vue'),
+    meta: { guest: true },
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: () => import('../views/RegisterPage.vue'),
+    meta: { guest: true },
+  },
+  {
+    path: '/upgrade',
+    name: 'Upgrade',
+    component: () => import('../views/UpgradePage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/',
+    name: 'Home',
+    component: () => import('../views/HomePage.vue'),
+    meta: { requiresAuth: true },
+  },
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
+
+router.beforeEach((to, from, next) => {
+  const { isLoggedIn, isLoading } = useAuth()
+  if (isLoading.value) return next()
+  if (to.meta.requiresAuth && !isLoggedIn.value) return next('/login')
+  if (to.meta.guest && isLoggedIn.value) return next('/')
+  next()
+})
+
+export default router
