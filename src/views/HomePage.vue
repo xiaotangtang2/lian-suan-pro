@@ -76,12 +76,12 @@ async function onLogout() {
           <UnitConverter v-else-if="active === 'unit'" />
           <AiCalculator v-else :is-member="isMember" />
         </section>
-        <aside class="ad-sidebar">
+        <!-- <aside class="ad-sidebar">
           <AdBanner placement="sidebar" />
-        </aside>
+        </aside> -->
       </div>
     </main>
-    <AdBanner placement="footer" class="footer-ad" />
+    <!-- <AdBanner placement="footer" class="footer-ad" /> -->
     <footer>链算 Pro · 数据仅存储在你的浏览器中 · v1.0</footer>
   </div>
 </template>
