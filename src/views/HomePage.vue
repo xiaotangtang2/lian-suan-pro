@@ -74,7 +74,7 @@ async function onLogout() {
           <BatchCalculator v-else-if="active === 'batch'" :is-member="isMember" />
           <FormulaTemplates v-else-if="active === 'formula'" :is-member="isMember" />
           <UnitConverter v-else-if="active === 'unit'" />
-          <AiCalculator v-else />
+          <AiCalculator v-else :is-member="isMember" />
         </section>
         <aside class="ad-sidebar">
           <AdBanner placement="sidebar" />

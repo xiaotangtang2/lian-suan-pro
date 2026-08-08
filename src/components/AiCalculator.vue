@@ -1,8 +1,12 @@
 ﻿<script setup>
 import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Promotion } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Promotion, Lock } from '@element-plus/icons-vue'
 import { supabase } from '../lib/supabase.js'
+import { useRouter } from 'vue-router'
+
+const props = defineProps({ isMember: Boolean })
+const router = useRouter()
 
 const text = ref('')
 const result = ref('')
@@ -15,6 +19,14 @@ const placeholderExamples = [
 
 async function calculate() {
   if (!text.value.trim()) return
+  if (!props.isMember) {
+    ElMessageBox.confirm('AI 计算为 PRO 会员功能，是否前往升级？', '会员专属', {
+      confirmButtonText: '去升级',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }).then(() => router.push('/upgrade')).catch(() => {})
+    return
+  }
   loading.value = true
   result.value = ''
   try {
@@ -75,8 +87,11 @@ function useExample(i) { text.value = placeholderExamples[i] }
         </el-tag>
       </div>
 
-      <el-button type="primary" size="large" :loading="loading" :icon="Promotion" @click="calculate">
+      <el-button v-if="isMember" type="primary" size="large" :loading="loading" :icon="Promotion" @click="calculate">
         {{ loading ? 'AI 计算中...' : '开始计算' }}
+      </el-button>
+      <el-button v-else type="primary" size="large" :icon="Lock" @click="calculate">
+        AI 计算（PRO 会员专属）
       </el-button>
 
       <div v-if="result" class="ai-result">
