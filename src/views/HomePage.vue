@@ -12,7 +12,8 @@ import AiCalculator from '../components/AiCalculator.vue'
 import AdBanner from '../components/AdBanner.vue'
 import { useAuth } from '../stores/auth.js'
 import { useTheme } from '../stores/theme.js'
-import { useRouter, RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
+import { ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 const { dark } = useTheme()
@@ -26,8 +27,15 @@ const modules = [
 ]
 
 async function onLogout() {
-  await logout()
-  router.replace('/login')
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
+      confirmButtonText: '退出',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await logout()
+    router.replace('/login')
+  } catch { /* user cancelled */ }
 }
 </script>
 
@@ -39,8 +47,12 @@ async function onLogout() {
         <span class="user-email">{{ state.currentUser?.email }}</span>
         <el-tag v-if="isMember" type="warning" effect="plain">PRO 会员</el-tag>
         <el-button v-else type="primary" size="small" @click="router.push('/upgrade')">升级会员</el-button>
-        <el-button circle :icon="dark ? Sunny : Moon" aria-label="切换主题" @click="dark = !dark" />
-        <el-button circle :icon="SwitchButton" aria-label="退出登录" @click="onLogout" />
+        <el-tooltip content="切换明暗主题" placement="bottom">
+          <el-button circle :icon="dark ? Sunny : Moon" aria-label="切换主题" @click="dark = !dark" />
+        </el-tooltip>
+        <el-tooltip content="退出登录" placement="bottom">
+          <el-button circle :icon="SwitchButton" aria-label="退出登录" @click="onLogout" />
+        </el-tooltip>
       </div>
     </header>
     <main>
