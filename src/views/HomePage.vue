@@ -76,9 +76,8 @@ async function onLogout() {
           <UnitConverter v-else-if="active === 'unit'" />
           <AiCalculator v-else :is-member="isMember" />
         </section>
-        <!-- <aside class="ad-sidebar">
-          <AdBanner placement="sidebar" />
-        </aside> -->
+        <!-- 广告位：有广告主后取消注释即可启用 -->
+        <!-- <aside class="ad-sidebar"><AdBanner placement="sidebar" /></aside> -->
       </div>
     </main>
     <!-- <AdBanner placement="footer" class="footer-ad" /> -->
