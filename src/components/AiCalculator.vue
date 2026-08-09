@@ -62,7 +62,7 @@ function useExample(i) { text.value = placeholderExamples[i] }
     <div class="section-heading">
       <div>
         <span>08 · AI LAB</span>
-        <h2>AI 自然语言计算 <el-tag type="success">GPT-4o-mini</el-tag></h2>
+        <h2>AI 自然语言计算 <el-tag v-if="!isMember" type="warning">PRO 会员</el-tag></h2>
         <p>用自然语言描述你的业务计算问题，AI 自动解析并给出结果。</p>
       </div>
     </div>

@@ -62,7 +62,7 @@ async function onLogout() {
       </section>
       <nav class="module-nav" aria-label="计算模块">
         <button v-for="item in modules" :key="item[0]" :class="{ active: active === item[0] }" @click="active = item[0]">
-          <el-icon><component :is="item[2]" /></el-icon><span>{{ item[1] }}</span><Lock v-if="item[3]" class="mini-lock" />
+          <el-icon><component :is="item[2]" /></el-icon><span>{{ item[1] }}</span><Lock v-if="item[3] && !isMember" class="mini-lock" />
         </button>
       </nav>
       <div class="tool-area">
