@@ -83,12 +83,20 @@ export function useAuth() {
       return { ok: false, error: '注册失败，请稍后重试' }
     }
 
+    // Supabase 对已存在的邮箱不报错，但返回空 identities，此时视为已注册
+    if (!data.user.identities || data.user.identities.length === 0) {
+      return { ok: false, error: '该邮箱已注册，请直接登录' }
+    }
+
     // 在 profiles 表创建记录
-    await supabase.from('profiles').insert({
+    const { error: profileError } = await supabase.from('profiles').insert({
       id: data.user.id,
       email,
       is_member: false,
     })
+    if (profileError) {
+      return { ok: false, error: '账号创建失败：' + profileError.message }
+    }
 
     state.currentUser = { email, is_member: false }
     return { ok: true }
