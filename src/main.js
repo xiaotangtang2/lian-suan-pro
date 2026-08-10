@@ -7,12 +7,7 @@ import './styles.css'
 import { useAuth } from './stores/auth.js'
 import { supabase } from './lib/supabase.js'
 
-function bootstrap() {
-  const app = createApp(App)
-  app.use(ElementPlus)
-  app.use(router)
-  app.mount('#app')
-
+async function bootstrap() {
   const auth = useAuth()
 
   // 邮箱确认或其他标签页登录成功后，自动同步当前账号
@@ -24,12 +19,13 @@ function bootstrap() {
     }
   })
 
-  // 后台恢复会话，不阻塞首屏渲染；恢复完如果没登录且在看受保护页面，就跳登录页
-  auth.restoreSession().then((ok) => {
-    if (!ok && router.currentRoute.value.meta.requiresAuth) {
-      router.replace('/login')
-    }
-  })
+  // 先恢复会话再挂载路由，未登录时由守卫直接跳登录页，避免首屏闪现首页
+  await auth.restoreSession()
+
+  const app = createApp(App)
+  app.use(ElementPlus)
+  app.use(router)
+  app.mount('#app')
 }
 
 bootstrap()

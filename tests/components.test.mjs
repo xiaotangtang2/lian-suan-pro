@@ -136,3 +136,15 @@ test('AI 安全：前端不包含 DeepSeek 密钥', () => {
   assert.doesNotMatch(frontend, /DEEPSEEK_API_KEY/)
   assert.doesNotMatch(frontend, /sk-[A-Za-z0-9]{10,}/)
 })
+
+
+test('启动顺序：先恢复会话再挂载路由，避免未登录时闪现首页', () => {
+  const source = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8')
+  const restoreAt = source.indexOf('await auth.restoreSession()')
+  const useRouterAt = source.indexOf('app.use(router)')
+  const mountAt = source.indexOf("app.mount('#app')")
+  assert.ok(restoreAt >= 0, 'main.js 必须显式 await auth.restoreSession()')
+  assert.ok(useRouterAt >= 0 && mountAt >= 0, 'main.js 需要安装并挂载路由')
+  assert.ok(restoreAt < useRouterAt, '必须先恢复会话，再安装路由')
+  assert.ok(restoreAt < mountAt, '必须先恢复会话，再挂载应用')
+})
