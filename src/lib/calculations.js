@@ -101,7 +101,9 @@ export function evaluateFormula(formula, params, values) {
   if (!/^[\w\d+\-*/().\s]+$/.test(String(formula))) throw new Error('formula illegal')
   const safeParams = (params || []).map(name => String(name).trim()).filter(Boolean)
   const args = safeParams.map(name => Number(values[name] || 0))
-  return Function(...safeParams, `"use strict";return (${formula})`)(...args)
+  const value = Function(...safeParams, `"use strict";return (${formula})`)(...args)
+  if (!Number.isFinite(value)) throw new Error('non-finite result')
+  return value
 }
 
 export const unitConfigs = {

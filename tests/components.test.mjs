@@ -123,3 +123,16 @@ test('AI 依赖：前端与 ai-proxy 契约一致', () => {
   assert.match(frontend, /data\.error/)
   assert.match(frontend, /result\.value = data\.result/)
 })
+
+test('组件冒烟：测试页 8 个模块全部可渲染', async () => {
+  const html = await renderComponent('/src/views/TestModules.vue')
+  for (const heading of ['基础计算器', '物流成本报价', '工时与工作日', '真实 IRR', '批量计算', '自定义公式模板', '物流单位换算', 'AI 自然语言计算']) {
+    assert.match(html, new RegExp(heading))
+  }
+})
+
+test('AI 安全：前端不包含 DeepSeek 密钥', () => {
+  const frontend = readFileSync(new URL('../src/components/AiCalculator.vue', import.meta.url), 'utf8')
+  assert.doesNotMatch(frontend, /DEEPSEEK_API_KEY/)
+  assert.doesNotMatch(frontend, /sk-[A-Za-z0-9]{10,}/)
+})
