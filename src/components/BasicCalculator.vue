@@ -3,22 +3,15 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Delete, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { copyText, loadLocal, saveLocal } from '../utils/storage'
+import { evaluateExpression } from '../lib/calculations.js'
 
 const expression = ref('')
 const result = ref('0')
 const history = ref(loadLocal('lc-calc-history', []))
 const keys = ['C','(',')','⌫','7','8','9','÷','4','5','6','×','1','2','3','−','0','.','%','+']
 // 仅允许数字和运算符，再由 Function 计算；用户内容不会接触网络或应用上下文。
-const evaluate = raw => {
-  let safe = raw.replaceAll('×','*').replaceAll('÷','/').replaceAll('−','-')
-  // 加减百分比按常见商业计算器语义处理：100+10%=110；乘除仍按 10%=0.1。
-  safe = safe.replace(/(\d+(?:\.\d+)?)([+-])(\d+(?:\.\d+)?)%/g, '($1$2($1*$3/100))')
-  safe = safe.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)')
-  if (!/^[\d+\-*/().\s]+$/.test(safe)) throw new Error('invalid')
-  const value = Function(`"use strict";return (${safe})`)()
-  if (!Number.isFinite(value)) throw new Error('invalid')
-  return Number(value.toFixed(10))
-}
+const evaluate = evaluateExpression
+
 const press = key => {
   if (key === 'C') { expression.value=''; result.value='0' }
   else if (key === '⌫') expression.value = expression.value.slice(0,-1)

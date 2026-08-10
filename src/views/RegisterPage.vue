@@ -1,28 +1,90 @@
-﻿<script setup>
-import { ref, reactive } from 'vue'
+<script setup>
+import { ref, reactive, watch, computed, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth.js'
+import { supabase } from '../lib/supabase.js'
 import { User, Lock } from '@element-plus/icons-vue'
 
 const router = useRouter()
-const { register } = useAuth()
+const { register, isLoggedIn, restoreSession } = useAuth()
 
-const form = reactive({ email: '', password: '', confirm: '' })
+const form = reactive({ username: '', email: '', password: '', confirm: '' })
 const error = ref('')
 const loading = ref(false)
+const confirmOpen = ref(false)
+const registeredEmail = ref('')
+const emailDomain = computed(() => {
+  const at = registeredEmail.value.lastIndexOf('@')
+  return at >= 0 ? registeredEmail.value.slice(at + 1).toLowerCase() : ''
+})
+const emailProviderUrl = computed(() => {
+  const map = {
+    'gmail.com': 'https://mail.google.com',
+    'googlemail.com': 'https://mail.google.com',
+    'outlook.com': 'https://outlook.live.com/mail/0/',
+    'hotmail.com': 'https://outlook.live.com/mail/0/',
+    'live.com': 'https://outlook.live.com/mail/0/',
+    'qq.com': 'https://mail.qq.com',
+    'foxmail.com': 'https://mail.qq.com',
+    '163.com': 'https://mail.163.com',
+    '126.com': 'https://mail.126.com',
+    'icloud.com': 'https://www.icloud.com/mail',
+    'me.com': 'https://www.icloud.com/mail',
+    'yahoo.com': 'https://mail.yahoo.com',
+    'protonmail.com': 'https://mail.proton.me',
+    'proton.me': 'https://mail.proton.me',
+  }
+  return map[emailDomain.value] || ''
+})
+function openEmail() {
+  if (!emailProviderUrl.value) return
+  window.open(emailProviderUrl.value, '_blank', 'noopener')
+}
+const waitingConfirm = ref(false)
+let confirmTimer = null
 
 async function onSubmit() {
   error.value = ''
+  const uname = form.username.trim()
+  if (!uname) { error.value = '请设置账号名'; return }
+  if (!/^[a-zA-Z0-9_\-一-龥]{2,20}$/.test(uname)) { error.value = '账号名需2-20位，可包含中文、字母、数字、下划线或横线'; return }
   if (!form.email || !form.password || !form.confirm) { error.value = '请填写完整信息'; return }
   if (form.password.length < 6) { error.value = '密码至少6位'; return }
   if (form.password !== form.confirm) { error.value = '两次密码不一致'; return }
   loading.value = true
   await new Promise(r => setTimeout(r, 400))
-  const result = await register(form.email.trim(), form.password)
+  const result = await register(form.email.trim(), form.password, uname)
   loading.value = false
   if (!result.ok) { error.value = result.error; return }
+  if (result.needConfirm) {
+    registeredEmail.value = form.email.trim()
+    waitingConfirm.value = true
+    confirmOpen.value = true
+    confirmTimer = setInterval(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        clearInterval(confirmTimer)
+        confirmTimer = null
+        await restoreSession()
+      }
+    }, 3000)
+    return
+  }
   router.replace('/')
 }
+
+
+onBeforeUnmount(() => {
+  if (confirmTimer) clearInterval(confirmTimer)
+})
+
+watch(isLoggedIn, (val) => {
+  if (val && waitingConfirm.value) {
+    waitingConfirm.value = false
+    confirmOpen.value = false
+    router.replace('/')
+  }
+})
 </script>
 
 <template>
@@ -35,6 +97,15 @@ async function onSubmit() {
       </div>
 
       <el-form label-position="top" @submit.prevent="onSubmit">
+        <el-form-item label="账号名">
+          <el-input
+            v-model="form.username"
+            placeholder="设置你的账号名，登录时可用"
+            :prefix-icon="User"
+            size="large"
+            clearable
+          />
+        </el-form-item>
         <el-form-item label="邮箱">
           <el-input
             v-model="form.email"
@@ -76,6 +147,15 @@ async function onSubmit() {
           已有账号？<router-link to="/login">返回登录</router-link>
         </p>
       </el-form>
+
+      <el-dialog v-model="confirmOpen" title="注册成功，请确认邮箱" width="92%" :close-on-click-modal="false" :close-on-press-escape="false">
+        <p style="margin:0 0 10px">确认邮件已发送到 <strong>{{ registeredEmail }}</strong>。</p>
+        <p style="margin:0 0 18px">点击下方按钮打开邮箱，找到确认邮件并点击链接；用当前浏览器确认后，本页面会自动登录。如果换了浏览器或设备确认，请回到登录页用邮箱和密码登录。</p>
+        <template #footer>
+          <el-button v-if="emailProviderUrl" type="primary" @click="openEmail">打开邮箱确认</el-button>
+          <el-button @click="confirmOpen = false">我知道了</el-button>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>

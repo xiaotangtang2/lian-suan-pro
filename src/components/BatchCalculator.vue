@@ -5,11 +5,12 @@ import { Download, Lock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as XLSX from 'xlsx'
 import ResultBox from './ResultBox.vue'
+import { buildBatchRows, parseBatchNumbers } from '../lib/calculations.js'
 const props=defineProps({isMember:Boolean}); const emit=defineEmits([])
 const router=useRouter()
 const text=ref('120\n350.5\n88\n1060'), mode=ref('sum'), rate=ref(10)
-const nums=computed(()=>text.value.split(/[\n,，\s]+/).map(Number).filter(Number.isFinite))
-const rows=computed(()=>nums.value.map((v,i)=>({序号:i+1,原始值:v,计算结果:mode.value==='markup'?v*(1+rate.value/100):mode.value==='tax'?v/(1+rate.value/100):v})))
+const nums=computed(()=>parseBatchNumbers(text.value))
+const rows=computed(()=>buildBatchRows(nums.value, mode.value, rate.value))
 const total=computed(()=>rows.value.reduce((s,r)=>s+r.计算结果,0))
 const exportExcel=()=>{if(!props.isMember){ElMessage.warning('Excel 导出为会员功能');return}const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.value),'批量计算');XLSX.writeFile(wb,'链算Pro-批量计算.xlsx')}
 </script>

@@ -24,11 +24,18 @@ npm run preview
 - 真实 IRR：月度 IRR、名义年利率及复利实际年化。
 - 物流单位换算：体积、重量、CBM 与台制材积。
 - **付费模块**：批量计算的 Excel 导出、自定义公式模板保存。顶部会员开关及“模拟开通会员”仅模拟前端会员状态，无支付接口。
-- AI 自然语言计算：仅预留接口，没有写入 API Key。
+- AI 自然语言计算：通过 Supabase Edge Function `ai-proxy` 调用，API Key 只存在后端环境变量中。
 
-## AI 接口接入位置
+## AI 接口
 
-编辑 `src/components/AiCalculator.vue` 中的 `requestAiCalculation()`。生产环境必须通过自有后端代理调用 AI 服务，禁止把 API Key 写入前端源码或 Vite 环境变量。
+前端调用 `supabase/functions/ai-proxy`，仓库已提供对应 Edge Function。部署前需在 Supabase Function Secrets 中配置：
+
+- `DEEPSEEK_API_KEY`：必填，DeepSeek API 密钥；也兼容 `OPENAI_API_KEY`。
+- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`：Supabase 通常会自动注入，必要时手动确认。
+- `DEEPSEEK_BASE_URL`：可选，默认 `https://api.deepseek.com`，也兼容 `OPENAI_BASE_URL`。
+- `DEEPSEEK_MODEL`：可选，默认 `deepseek-chat`，也兼容 `AI_MODEL`。
+
+禁止把 API Key 写入前端源码或 Vite 环境变量。
 
 ## 目录结构
 

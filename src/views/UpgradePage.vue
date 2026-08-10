@@ -1,12 +1,13 @@
-﻿<script setup>
-import { ref, computed } from 'vue'
+<script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Check, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
 
 const router = useRouter()
-const { state } = useAuth()
+const { state, isMember, refreshMembership } = useAuth()
 
 const selectedPlan = ref('year')
 const plans = [
@@ -17,19 +18,122 @@ const plans = [
 const activePlan = computed(() => plans.find(p => p.id === selectedPlan.value))
 
 const qrTab = ref('wechat')
-const orderId = 'LC' + Date.now().toString(36).toUpperCase()
+const orderNo = ref('LC' + Date.now().toString(36).toUpperCase())
+
+const pendingOrder = ref(null)
+const submitting = ref(false)
+const testing = ref(false)
+let statusTimer = null
+
+async function loadMyOrders() {
+  if (!state.currentUser?.id) return
+  const { data } = await supabase
+    .from('membership_orders')
+    .select('*')
+    .eq('user_id', state.currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(5)
+  const pending = (data || []).find(o => o.status === 'pending')
+  if (pending) pendingOrder.value = pending
+}
 
 function copyOrderId() {
-  navigator.clipboard.writeText(orderId)
+  navigator.clipboard.writeText(orderNo.value)
   ElMessage.success('订单号已复制')
 }
+
+async function submitPayment() {
+  if (!state.currentUser?.id) { ElMessage.warning('请先登录'); return }
+  if (pendingOrder.value) { ElMessage.warning('已有待开通订单，请等待管理员确认'); return }
+  submitting.value = true
+  try {
+    const { data, error } = await supabase
+      .from('membership_orders')
+      .insert({
+        user_id: state.currentUser.id,
+        email: state.currentUser.email,
+        order_no: orderNo.value,
+        plan_id: activePlan.value.id,
+        plan_name: activePlan.value.name,
+        amount: Number(activePlan.value.price.replace('¥', '')),
+        pay_method: qrTab.value,
+        status: 'pending',
+      })
+      .select()
+      .single()
+    if (error) throw error
+    pendingOrder.value = data
+    notifyAdmin(data)
+    ElMessage.success('开通申请已提交，管理员确认后会自动解锁')
+  } catch (e) {
+    ElMessage.error('提交失败：' + (e.message || '请稍后重试'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function simulatePayment() {
+  if (!state.currentUser?.id) { ElMessage.warning('请先登录'); return }
+  if (pendingOrder.value) { ElMessage.warning('已有待开通订单，请等待管理员确认'); return }
+  testing.value = true
+  try {
+    const { data, error } = await supabase
+      .from('membership_orders')
+      .insert({
+        user_id: state.currentUser.id,
+        email: state.currentUser.email,
+        order_no: 'TEST' + Date.now().toString(36).toUpperCase(),
+        plan_id: activePlan.value.id,
+        plan_name: activePlan.value.name,
+        amount: Number(activePlan.value.price.replace('¥', '')),
+        pay_method: qrTab.value,
+        status: 'pending',
+      })
+      .select()
+      .single()
+    if (error) throw error
+    pendingOrder.value = data
+    notifyAdmin(data)
+    ElMessage.success('模拟付款成功，订单已提交，请到管理员后台确认收款')
+  } catch (e) {
+    ElMessage.error('模拟付款失败：' + (e.message || '请稍后重试'))
+  } finally {
+    testing.value = false
+  }
+}
+
+async function notifyAdmin(order) {
+  try {
+    await supabase.functions.invoke('notify-admin', { body: { order } })
+  } catch (e) {
+    console.warn('新订单微信提醒发送失败', e?.message || e)
+  }
+}
+
+function onStatusVisible() {
+  if (document.visibilityState === 'visible') refreshMembership()
+}
+
+onMounted(() => {
+  loadMyOrders()
+  refreshMembership()
+  window.addEventListener('focus', refreshMembership)
+  document.addEventListener('visibilitychange', onStatusVisible)
+  statusTimer = setInterval(refreshMembership, 15000)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', refreshMembership)
+  document.removeEventListener('visibilitychange', onStatusVisible)
+  if (statusTimer) clearInterval(statusTimer)
+})
 </script>
 
 <template>
   <div class="upgrade-page">
     <header class="up-topbar">
       <el-button :icon="ArrowLeft" text @click="router.push('/')">返回工作台</el-button>
-      <span class="up-user">{{ state.currentUser?.email }}</span>
+<span class="up-user">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span><el-tag v-if="isMember" type="warning" effect="plain" style="margin-left:8px">PRO 会员</el-tag>
     </header>
 
     <section class="up-hero">
@@ -91,19 +195,29 @@ function copyOrderId() {
           </div>
           <div class="pay-order">
             <span>订单号</span>
-            <code>{{ orderId }}</code>
+            <code>{{ orderNo }}</code>
             <el-button :icon="CopyDocument" text size="small" @click="copyOrderId">复制</el-button>
           </div>
           <el-divider />
           <p class="pay-note">
-            付款时请在<strong>备注里填写订单号</strong>，付款后联系管理员开通会员。
-            通常 5 分钟内完成开通。
+            付款时请在<strong>备注里填写订单号</strong>，付款后点下方按钮提交开通申请，管理员确认后会自动解锁。
           </p>
+          <el-alert v-if="pendingOrder" :title="'订单 ' + pendingOrder.order_no + ' 已提交，等待管理员确认收款'" type="info" :closable="false" show-icon style="margin-top:16px" />
+          <el-button v-if="!isMember" type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder" @click="submitPayment">
+            {{ pendingOrder ? "开通申请已提交，等待确认" : "我已付款，申请开通" }}
+          </el-button>
+          <div v-else class="member-done"><el-icon :size="16"><Check /></el-icon> 已是 PRO 会员，全部功能已解锁</div>
         </div>
       </div>
     </section>
 
-    <footer class="up-footer">链算 Pro · 会员由管理员手动开通 · 如有疑问请联系客服</footer>
+    <section v-if="!isMember" class="test-panel">
+      <h3>测试专用：模拟付款提交订单</h3>
+      <p>给当前账号提交一笔待确认订单，再到管理员后台点“确认收款”，用来测试完整开通流程，不会真实扣款。</p>
+      <el-button type="warning" :loading="testing" @click="simulatePayment">模拟付款并提交订单</el-button>
+    </section>
+
+<footer class="up-footer">链算 Pro · 会员由管理员确认收款后自动开通 · 如有疑问请联系客服</footer>
   </div>
 </template>
 
@@ -211,6 +325,12 @@ function copyOrderId() {
 .pay-order code { font-size: 14px; background: var(--brand-soft); padding: 4px 10px; border-radius: 6px; }
 
 .pay-note { font-size: 13px; color: var(--muted); line-height: 1.7; margin: 0; }
+.member-done {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 16px; padding: 14px 16px;
+  background: var(--brand-soft); border: 1px solid var(--brand);
+  border-radius: 12px; color: var(--brand); font-weight: 600; font-size: 14px;
+}
 
 .qr-wrapper {
   position: relative; width: 200px; height: 200px;
@@ -222,6 +342,14 @@ function copyOrderId() {
   z-index: 2;
 }
 .qr-placeholder { z-index: 1; }
+
+.test-panel {
+  max-width: 700px; margin: 0 auto 24px; padding: 20px 24px;
+  background: color-mix(in srgb, #f59e0b 12%, var(--card));
+  border: 1px dashed #f59e0b; border-radius: 14px;
+}
+.test-panel h3 { margin: 0 0 6px; font-size: 15px; color: #b45309; }
+.test-panel p { margin: 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.6; }
 
 .up-footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; }
 

@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
 import ResultBox from './ResultBox.vue'
+import { calculateMonthlyIrr } from '../lib/calculations.js'
 const form=ref({principal:10000,payment:950,periods:12})
-const monthlyIrr=computed(()=>{const {principal,payment,periods}=form.value;if(principal<=0||payment<=0||periods<1)return null;const npv=r=>{let v=-principal;for(let i=1;i<=periods;i++)v+=payment/((1+r)**i);return v};let low=-.9999,high=10;if(npv(low)*npv(high)>0)return null;for(let n=0;n<200;n++){const r=(low+high)/2;if(npv(r)>0)low=r;else high=r}return (low+high)/2})
+const monthlyIrr=computed(()=>calculateMonthlyIrr(Number(form.value.principal), Number(form.value.payment), Number(form.value.periods)))
 const nominal=computed(()=>monthlyIrr.value===null?null:monthlyIrr.value*12*100), effective=computed(()=>monthlyIrr.value===null?null:((1+monthlyIrr.value)**12-1)*100)
 </script>
 <template><div><div class="section-heading"><div><span>04 · FINANCE</span><h2>真实 IRR 分期计算</h2><p>用现金流反推真实资金成本，别再被“月费率”撩花眼。</p></div></div><div class="two-column compact"><el-form label-position="top" class="form-grid"><el-form-item label="借款本金（元）"><el-input-number v-model="form.principal" :min="1" :precision="2"/></el-form-item><el-form-item label="每期还款（元）"><el-input-number v-model="form.payment" :min="0" :precision="2"/></el-form-item><el-form-item label="还款期数（月）"><el-input-number v-model="form.periods" :min="1" :max="600"/></el-form-item></el-form><div class="result-panel"><template v-if="monthlyIrr !== null"><ResultBox label="月度 IRR" :value="`${(monthlyIrr*100).toFixed(4)}%`"/><ResultBox label="名义年利率" :value="`${nominal.toFixed(2)}%`"/><ResultBox label="实际年化利率" :value="`${effective.toFixed(2)}%`" featured/></template><el-alert v-else title="当前现金流无法计算 IRR" description="请检查本金、每期还款和期数，确保存在有效的正负现金流。" type="warning" :closable="false" show-icon/><p class="formula-note">实际年化按复利计算：(1 + 月度 IRR)¹² - 1。结果仅供经营决策参考。</p></div></div></div></template>

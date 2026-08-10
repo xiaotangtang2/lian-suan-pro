@@ -1,7 +1,12 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '../stores/auth.js'
 
 const routes = [
+  {
+    path: '/test',
+    name: 'Test',
+    component: () => import('../views/TestModules.vue'),
+  },
   {
     path: '/login',
     name: 'Login',
@@ -21,6 +26,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('../views/AdminPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/',
     name: 'Home',
     component: () => import('../views/HomePage.vue'),
@@ -37,7 +48,6 @@ router.beforeEach((to, from, next) => {
   const { isLoggedIn, isLoading } = useAuth()
   if (isLoading.value) return next()
   if (to.meta.requiresAuth && !isLoggedIn.value) return next('/login')
-  if (to.meta.guest && isLoggedIn.value) return next('/')
   next()
 })
 

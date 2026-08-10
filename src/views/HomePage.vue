@@ -1,6 +1,6 @@
 ﻿<script setup>
-import { ref } from 'vue'
-import { Moon, Sunny, Lock, Operation, Van, Timer, TrendCharts, DocumentCopy, Files, Switch, MagicStick, SwitchButton } from '@element-plus/icons-vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { Moon, Sunny, Lock, Operation, Van, Timer, TrendCharts, DocumentCopy, Files, Switch, MagicStick, SwitchButton, List } from '@element-plus/icons-vue'
 import BasicCalculator from '../components/BasicCalculator.vue'
 import LogisticsCalculator from '../components/LogisticsCalculator.vue'
 import WorkdayCalculator from '../components/WorkdayCalculator.vue'
@@ -17,7 +17,28 @@ import { ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 const { dark } = useTheme()
-const { state, isMember, logout } = useAuth()
+const { state, isMember, isAdmin, logout, refreshMembership } = useAuth()
+
+let refreshTimer = null
+async function syncMembership() {
+  await refreshMembership()
+}
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') syncMembership()
+}
+
+onMounted(() => {
+  syncMembership()
+  window.addEventListener('focus', syncMembership)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  refreshTimer = setInterval(syncMembership, 30000)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', syncMembership)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  if (refreshTimer) clearInterval(refreshTimer)
+})
 
 const active = ref('quote')
 const modules = [
@@ -44,11 +65,14 @@ async function onLogout() {
     <header class="topbar">
       <div class="brand"><div class="brand-mark">链</div><div><strong>链算 Pro</strong><span>物流商业计算工作台</span></div></div>
       <div class="header-actions">
-        <span class="user-email">{{ state.currentUser?.email }}</span>
+        <span class="user-email">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span>
         <el-tag v-if="isMember" type="warning" effect="plain">PRO 会员</el-tag>
         <el-button v-else type="primary" size="small" @click="router.push('/upgrade')">升级会员</el-button>
         <el-tooltip content="切换明暗主题" placement="bottom">
           <el-button circle :icon="dark ? Sunny : Moon" aria-label="切换主题" @click="dark = !dark" />
+        </el-tooltip>
+        <el-tooltip v-if="isAdmin" content="管理订单" placement="bottom">
+          <el-button circle :icon="List" aria-label="管理订单" @click="router.push('/admin')" />
         </el-tooltip>
         <el-tooltip content="退出登录" placement="bottom">
           <el-button circle :icon="SwitchButton" aria-label="退出登录" @click="onLogout" />

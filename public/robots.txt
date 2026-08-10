@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lian-suan-pro.pages.dev/sitemap.xml
