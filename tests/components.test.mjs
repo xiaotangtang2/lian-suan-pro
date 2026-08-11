@@ -148,3 +148,10 @@ test('启动顺序：先恢复会话再挂载路由，避免未登录时闪现�
   assert.ok(restoreAt < useRouterAt, '必须先恢复会话，再安装路由')
   assert.ok(restoreAt < mountAt, '必须先恢复会话，再挂载应用')
 })
+
+
+test('移动端顶部：账号不再被隐藏且可省略号收缩', () => {
+  const css = readFileSync(new URL('../src/styles.css', import.meta.url), 'utf8')
+  assert.doesNotMatch(css, /\.user-email\{display:none\}/)
+  assert.match(css, /\.user-email\{display:inline-block;flex:1 1 auto;min-width:0;max-width:none/)
+})
