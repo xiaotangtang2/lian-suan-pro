@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { Moon, Sunny, Lock, Operation, Van, Timer, TrendCharts, DocumentCopy, Files, Switch, MagicStick, SwitchButton, List } from '@element-plus/icons-vue'
 import BasicCalculator from '../components/BasicCalculator.vue'
@@ -105,7 +105,7 @@ async function onLogout() {
       </div>
     </main>
     <!-- <AdBanner placement="footer" class="footer-ad" /> -->
-    <footer>链算 Pro · 数据仅存储在你的浏览器中 · v1.0</footer>
+    <footer>链算 Pro · <router-link to="/contact" class="contact-link">联系我们</router-link> · 数据仅存储在你的浏览器中 · v1.0</footer>
   </div>
 </template>
 
@@ -118,4 +118,5 @@ async function onLogout() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.contact-link { color: var(--brand); text-decoration: none; font-weight: 600; }
 </style>

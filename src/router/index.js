@@ -3,9 +3,9 @@ import { useAuth } from '../stores/auth.js'
 
 const routes = [
   {
-    path: '/test',
-    name: 'Test',
-    component: () => import('../views/TestModules.vue'),
+    path: '/contact',
+    name: 'Contact',
+    component: () => import('../views/ContactPage.vue'),
   },
   {
     path: '/login',
