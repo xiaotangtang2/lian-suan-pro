@@ -48,7 +48,7 @@ async function onSubmit() {
   const uname = form.username.trim()
   if (!uname) { error.value = '请设置账号名'; return }
   if (!/^[a-zA-Z0-9_\-一-龥]{2,20}$/.test(uname)) { error.value = '账号名需2-20位，可包含中文、字母、数字、下划线或横线'; return }
-  if (!form.email || !form.password || !form.confirm) { error.value = '请填写完整信息'; return }
+  if (!form.email.trim() || !form.password || !form.confirm) { error.value = '请填写完整信息'; return }
   if (form.password.length < 6) { error.value = '密码至少6位'; return }
   if (form.password !== form.confirm) { error.value = '两次密码不一致'; return }
   loading.value = true

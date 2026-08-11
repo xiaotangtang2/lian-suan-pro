@@ -37,7 +37,7 @@ onBeforeUnmount(() => {
 
 async function onEmailSubmit() {
   error.value = ''
-  if (!form.email || !form.password) { error.value = '请填写完整信息'; return }
+  if (!form.email.trim() || !form.password) { error.value = '请填写完整信息'; return }
   loading.value = true
   await new Promise(r => setTimeout(r, 400))
   const result = await login(form.email.trim(), form.password)
@@ -48,7 +48,7 @@ async function onEmailSubmit() {
 
 async function onAccountSubmit() {
   error.value = ''
-  if (!accountForm.account || !accountForm.password) { error.value = '请填写账号和密码'; return }
+  if (!accountForm.account.trim() || !accountForm.password) { error.value = '请填写账号和密码'; return }
   loading.value = true
   await new Promise(r => setTimeout(r, 400))
   const result = await loginWithAccount(accountForm.account.trim(), accountForm.password)
