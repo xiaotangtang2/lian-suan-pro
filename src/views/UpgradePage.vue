@@ -10,10 +10,10 @@ const router = useRouter()
 const { state, isMember, refreshMembership } = useAuth()
 
 const selectedPlan = ref('year')
+const memberBenefits = ['全部 8 个计算模块', 'Excel 批量导出', '自定义公式模板', 'AI 自然语言计算']
 const plans = [
-  { id: 'month', name: '月度会员', price: '¥29', period: '/月', desc: '适合短期项目使用', features: ['全部 8 个计算模块', 'Excel 批量导出', '公式模板库'] },
-  { id: 'quarter', name: '季度会员', price: '¥69', period: '/季', desc: '折合 ¥23/月 · 热门选择', features: ['全部月度功能', '优先客服响应', '月度数据报告'], tag: '推荐' },
-  { id: 'year', name: '年度会员', price: '¥199', period: '/年', desc: '折合 ¥16.6/月 · 最划算', features: ['全部季度功能', '专属功能内测', '一对一技术支持'] },
+  { id: 'month', name: '月度会员', amount: 29, price: '¥29', period: '/月', desc: '按月付费，灵活使用' },
+  { id: 'year', name: '年度会员', amount: 285, price: '¥285', period: '/年', desc: '折合 ¥23.75/月 · 比月付省 ¥63', tag: '约省 18%' },
 ]
 const activePlan = computed(() => plans.find(p => p.id === selectedPlan.value))
 
@@ -81,7 +81,7 @@ async function submitPayment() {
         order_no: orderNo.value,
         plan_id: activePlan.value.id,
         plan_name: activePlan.value.name,
-        amount: Number(activePlan.value.price.replace('¥', '')),
+        amount: activePlan.value.amount,
         pay_method: qrTab.value,
         status: 'pending',
         proof_path: uploadedPath,
@@ -139,7 +139,7 @@ onBeforeUnmount(() => {
 
     <section class="up-hero">
       <h1>升级 PRO 会员</h1>
-      <p>解锁全部 8 个商业计算模块，效率翻倍</p>
+      <p>同一会员等级、相同完整权益，仅付费周期不同</p>
     </section>
 
     <!-- 套餐选择 -->
@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
         <h3>{{ plan.name }}</h3>
         <p class="plan-desc">{{ plan.desc }}</p>
         <ul class="plan-features">
-          <li v-for="f in plan.features" :key="f">
+          <li v-for="f in memberBenefits" :key="f">
             <el-icon :size="14"><Check /></el-icon>{{ f }}
           </li>
         </ul>
@@ -247,8 +247,8 @@ onBeforeUnmount(() => {
 .up-hero p { color: var(--muted); font-size: 15px; margin: 0; }
 
 .pricing-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 20px; max-width: 960px; margin: 0 auto; padding: 0 24px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px; max-width: 700px; margin: 0 auto; padding: 0 24px;
 }
 
 .pricing-card {

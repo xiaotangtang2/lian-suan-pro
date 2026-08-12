@@ -71,6 +71,8 @@ npm.cmd run preview
 
 后续数据库变更位于 `supabase/migrations/`。其中付款凭证使用私有 Storage bucket，提交前会校验图片类型及 5MB 大小限制，管理员通过短时签名链接查看。
 
+会员体系仅包含月度和年度两个付费周期，两者均为同一 PRO 等级且权益完全一致；年度价格提供约 18% 优惠。第一版不提供季度套餐。
+
 Edge Functions：
 
 - `supabase/functions/ai-proxy`：AI 计算代理
