@@ -16,6 +16,12 @@ const plans = [
   { id: 'year', name: '年度会员', amount: 285, price: '¥285', period: '/年', desc: '折合 ¥23.75/月 · 比月付省 ¥63', tag: '约省 18%' },
 ]
 const activePlan = computed(() => plans.find(p => p.id === selectedPlan.value))
+const memberExpiryText = computed(() => {
+  const value = state.currentUser?.member_expires_at
+  if (!value) return '长期有效'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '有效期未知' : date.toLocaleString('zh-CN', { hour12: false })
+})
 
 const qrTab = ref('wechat')
 const orderNo = ref('LC' + Date.now().toString(36).toUpperCase())
@@ -205,17 +211,17 @@ onBeforeUnmount(() => {
           </p>
           <el-alert v-if="latestRejectedOrder && !pendingOrder" :title="'上次申请已驳回：' + (latestRejectedOrder.rejection_reason || '凭证或到账信息不符')" type="error" :closable="false" show-icon style="margin-top:16px" />
           <el-alert v-if="pendingOrder" :title="'订单 ' + pendingOrder.order_no + ' 已提交，等待管理员确认收款'" type="info" :closable="false" show-icon style="margin-top:16px" />
-          <div v-if="!isMember && !pendingOrder" class="proof-upload">
+          <div v-if="!pendingOrder" class="proof-upload">
             <el-upload :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/webp" :on-change="selectProof">
               <el-button :icon="UploadFilled">{{ proofFile ? '重新选择凭证' : '上传付款凭证' }}</el-button>
             </el-upload>
             <img v-if="proofPreview" :src="proofPreview" alt="付款凭证预览" class="proof-preview" />
             <small>支持 JPG、PNG、WebP，最大 5MB；凭证仅本人和管理员可查看。</small>
           </div>
-          <el-button v-if="!isMember" type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder || !proofFile" @click="submitPayment">
-            {{ pendingOrder ? "开通申请已提交，等待确认" : proofFile ? "提交凭证，申请开通" : "请先上传付款凭证" }}
+          <el-button type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder || !proofFile" @click="submitPayment">
+            {{ pendingOrder ? "申请已提交，等待确认" : proofFile ? (isMember ? "提交凭证，续费会员" : "提交凭证，申请开通") : "请先上传付款凭证" }}
           </el-button>
-          <div v-else class="member-done"><el-icon :size="16"><Check /></el-icon> 已是 PRO 会员，全部功能已解锁</div>
+          <div v-if="isMember" class="member-done"><el-icon :size="16"><Check /></el-icon><span>PRO 会员有效期至 {{ memberExpiryText }}，续费将在当前到期日后顺延</span></div>
         </div>
       </div>
     </section>
