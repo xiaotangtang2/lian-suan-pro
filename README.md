@@ -1,51 +1,106 @@
-# 链算 Pro — 物流商业计算器
+# 链算 Pro
 
-基于 Vue 3、Vite、Element Plus 的纯浏览器端商业计算工具。计算记录、主题偏好和公式模板仅存放在当前浏览器的 `localStorage`，不会上传服务器。
+基于 Vue 3、Vite 和 Element Plus 开发的物流商业计算网站。
 
-## 安装与启动
+## 技术栈
 
-```bash
-npm install
-npm run dev
+- Vue 3
+- Vite
+- Vue Router
+- Element Plus
+- Supabase
+- SheetJS（Excel 导出）
+
+## 本地开发
+
+要求已安装 Node.js 18 或更高版本。
+
+```powershell
+Set-Location "D:\CodexProjects\MyWeb"
+npm.cmd install
+npm.cmd run dev
 ```
 
-浏览器打开终端显示的本地地址。生产构建：
+浏览器打开终端输出的本地地址，默认通常为 `http://localhost:5173`。
 
-```bash
-npm run build
-npm run preview
+## 环境变量
+
+在项目根目录创建 `.env`：
+
+```env
+VITE_SUPABASE_URL=https://你的项目.supabase.co
+VITE_SUPABASE_ANON_KEY=你的匿名公钥
 ```
 
-## 功能模块
+前端只能使用 Supabase 匿名公钥。服务端密钥和 AI API Key 必须保存在 Supabase Function Secrets 中，不能写进前端源码或 `.env`。
 
-- 基础计算器：四则运算、百分比链式计算、键盘操作、历史记录及复制。
-- 物流报价：完整成本、损耗、税率、利润率和阶梯运费计算。
-- 工时与工作日：实际工时、加班时长、排除周末的日期统计。
-- 真实 IRR：月度 IRR、名义年利率及复利实际年化。
-- 物流单位换算：体积、重量、CBM 与台制材积。
-- **付费模块**：批量计算的 Excel 导出、自定义公式模板保存。顶部会员开关及“模拟开通会员”仅模拟前端会员状态，无支付接口。
-- AI 自然语言计算：通过 Supabase Edge Function `ai-proxy` 调用，API Key 只存在后端环境变量中。
+## 构建
 
-## AI 接口
+```powershell
+npm.cmd run build
+```
 
-前端调用 `supabase/functions/ai-proxy`，仓库已提供对应 Edge Function。部署前需在 Supabase Function Secrets 中配置：
+构建结果生成在 `dist/`。本地检查生产构建：
 
-- `DEEPSEEK_API_KEY`：必填，DeepSeek API 密钥；也兼容 `OPENAI_API_KEY`。
-- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`：Supabase 通常会自动注入，必要时手动确认。
-- `DEEPSEEK_BASE_URL`：可选，默认 `https://api.deepseek.com`，也兼容 `OPENAI_BASE_URL`。
-- `DEEPSEEK_MODEL`：可选，默认 `deepseek-chat`，也兼容 `AI_MODEL`。
+```powershell
+npm.cmd run preview
+```
 
-禁止把 API Key 写入前端源码或 Vite 环境变量。
+## 部署
 
-## 目录结构
+### Vercel
+
+项目已包含 `vercel.json`。导入代码仓库后设置以下环境变量：
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+构建命令使用 `npm run build`，输出目录使用 `dist`。
+
+### 静态服务器
+
+将 `dist/` 内的全部文件上传到网站根目录。由于项目使用 Vue Router History 模式，服务器需要将不存在的路径回退到 `index.html`。
+
+## Supabase
+
+数据库初始化脚本：
+
+- `supabase_schema.sql`
+- `supabase_membership.sql`
+- `supabase_username_login.sql`
+
+Edge Functions：
+
+- `supabase/functions/ai-proxy`：AI 计算代理
+- `supabase/functions/send-contact`：联系表单
+- `supabase/functions/notify-admin`：会员订单通知
+
+部署 Edge Functions 后，在 Supabase 控制台配置其所需 Secrets。
+
+## 项目结构
 
 ```text
 src/
-├─ components/       # 独立业务计算模块与通用结果组件
-├─ utils/storage.js  # localStorage、复制及金额格式化工具
-├─ App.vue           # 页面框架、导航、主题与会员状态
-├─ main.js           # 应用入口
-└─ styles.css        # 全局商务主题与响应式样式
+├─ components/   业务组件和计算器模块
+├─ config/       前端配置
+├─ lib/          Supabase 与计算逻辑
+├─ router/       页面路由
+├─ stores/       登录状态和主题状态
+├─ utils/        通用工具
+├─ views/        页面组件
+├─ App.vue       应用框架
+└─ main.js       应用入口
+
+supabase/
+└─ functions/    Supabase Edge Functions
+
+public/          静态资源
 ```
 
-Excel 导出使用 `xlsx` 在浏览器内生成文件；项目不包含后端、数据库、小程序或 App 代码。
+## 常用命令
+
+```text
+npm run dev       启动开发服务器
+npm run build     生成生产版本
+npm run preview   预览生产版本
+```

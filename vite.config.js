@@ -1,8 +1,25 @@
-﻿import { defineConfig } from 'vite'
+import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+function versionFilePlugin() {
+  return {
+    name: 'write-version-file',
+    apply: 'build',
+    closeBundle() {
+      let items = []
+      try {
+        const parsed = JSON.parse(readFileSync(resolve('public', 'updates.json'), 'utf8'))
+        items = Array.isArray(parsed.items) ? parsed.items : []
+      } catch {}
+      writeFileSync(resolve('dist', 'version.json'), JSON.stringify({ version: Date.now().toString(36), items }))
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), versionFilePlugin()],
   build: {
     rollupOptions: {
       output: {

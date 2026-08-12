@@ -22,7 +22,6 @@ const orderNo = ref('LC' + Date.now().toString(36).toUpperCase())
 
 const pendingOrder = ref(null)
 const submitting = ref(false)
-const testing = ref(false)
 let statusTimer = null
 
 async function loadMyOrders() {
@@ -69,36 +68,6 @@ async function submitPayment() {
     ElMessage.error('提交失败：' + (e.message || '请稍后重试'))
   } finally {
     submitting.value = false
-  }
-}
-
-async function simulatePayment() {
-  if (!state.currentUser?.id) { ElMessage.warning('请先登录'); return }
-  if (pendingOrder.value) { ElMessage.warning('已有待开通订单，请等待管理员确认'); return }
-  testing.value = true
-  try {
-    const { data, error } = await supabase
-      .from('membership_orders')
-      .insert({
-        user_id: state.currentUser.id,
-        email: state.currentUser.email,
-        order_no: 'TEST' + Date.now().toString(36).toUpperCase(),
-        plan_id: activePlan.value.id,
-        plan_name: activePlan.value.name,
-        amount: Number(activePlan.value.price.replace('¥', '')),
-        pay_method: qrTab.value,
-        status: 'pending',
-      })
-      .select()
-      .single()
-    if (error) throw error
-    pendingOrder.value = data
-    notifyAdmin(data)
-    ElMessage.success('模拟付款成功，订单已提交，请到管理员后台确认收款')
-  } catch (e) {
-    ElMessage.error('模拟付款失败：' + (e.message || '请稍后重试'))
-  } finally {
-    testing.value = false
   }
 }
 
@@ -209,12 +178,6 @@ onBeforeUnmount(() => {
           <div v-else class="member-done"><el-icon :size="16"><Check /></el-icon> 已是 PRO 会员，全部功能已解锁</div>
         </div>
       </div>
-    </section>
-
-    <section v-if="!isMember" class="test-panel">
-      <h3>测试专用：模拟付款提交订单</h3>
-      <p>给当前账号提交一笔待确认订单，再到管理员后台点“确认收款”，用来测试完整开通流程，不会真实扣款。</p>
-      <el-button type="warning" :loading="testing" @click="simulatePayment">模拟付款并提交订单</el-button>
     </section>
 
 <footer class="up-footer">链算 Pro · 会员由管理员确认收款后自动开通 · 如有疑问请联系客服</footer>
@@ -342,14 +305,6 @@ onBeforeUnmount(() => {
   z-index: 2;
 }
 .qr-placeholder { z-index: 1; }
-
-.test-panel {
-  max-width: 700px; margin: 0 auto 24px; padding: 20px 24px;
-  background: color-mix(in srgb, #f59e0b 12%, var(--card));
-  border: 1px dashed #f59e0b; border-radius: 14px;
-}
-.test-panel h3 { margin: 0 0 6px; font-size: 15px; color: #b45309; }
-.test-panel p { margin: 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.6; }
 
 .up-footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; }
 

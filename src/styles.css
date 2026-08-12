@@ -7,3 +7,54 @@
 .ad-sidebar{position:sticky;top:92px}
 .footer-ad{max-width:1240px;margin:0 auto 20px;padding:0 24px}
 @media(max-width:960px){.tool-area{grid-template-columns:1fr}.ad-sidebar{position:static;margin-top:20px}.footer-ad{padding:0 12px}}
+
+/* --- Dimensional interaction & motion --- */
+button, .el-button, .module-nav button, .result-box, .tier-row, .history-item {
+  transition: transform .24s cubic-bezier(.2,.7,.3,1.2), box-shadow .24s ease, border-color .24s ease, background-color .2s ease, color .2s ease;
+}
+.brand-mark {
+  transform-style: preserve-3d;
+  box-shadow: 0 8px 20px rgba(23,107,91,.22);
+  transition: transform .35s cubic-bezier(.2,.7,.3,1.4), box-shadow .3s ease;
+}
+.brand:hover .brand-mark { transform: rotateY(-18deg) rotateX(8deg) translateZ(8px); box-shadow: 0 16px 30px rgba(23,107,91,.28); }
+.hero { perspective: 900px; }
+.hero h1 { transform-style: preserve-3d; }
+.hero h1 em { display: inline-block; transition: transform .3s ease, text-shadow .3s ease; text-shadow: 0 2px 0 rgba(23,107,91,.14); }
+.hero:hover h1 em { transform: translateZ(24px) rotateX(8deg); text-shadow: 0 8px 24px rgba(23,107,91,.22); }
+.privacy-pill {
+  transform-style: preserve-3d;
+  box-shadow: 0 10px 24px rgba(25,36,55,.08);
+  transition: transform .3s cubic-bezier(.2,.7,.3,1.3), box-shadow .3s ease;
+}
+.privacy-pill:hover { transform: translateZ(20px) rotateX(10deg) rotateY(-8deg); box-shadow: 0 18px 36px rgba(25,36,55,.14); }
+.module-nav { perspective: 1100px; }
+.module-nav button {
+  transform-style: preserve-3d;
+  box-shadow: 0 8px 18px rgba(25,36,55,.06);
+  will-change: transform;
+}
+.module-nav button:hover { transform: translateY(-5px) rotateX(9deg) translateZ(14px); box-shadow: 0 18px 30px rgba(23,107,91,.18), 0 6px 14px rgba(25,36,55,.08); }
+.module-nav button:active { transform: translateY(1px) rotateX(-2deg) translateZ(4px); box-shadow: 0 4px 10px rgba(25,36,55,.12); }
+.module-nav button.active { transform: translateY(-2px) rotateX(5deg) translateZ(9px); box-shadow: 0 14px 26px rgba(23,107,91,.2); }
+.module-nav button .mini-lock { transition: transform .25s ease; }
+.module-nav button:hover .mini-lock { transform: translateZ(20px) rotate(14deg); }
+.tool-card {
+  transform-style: preserve-3d;
+  box-shadow: var(--shadow);
+  transition: transform .35s cubic-bezier(.2,.7,.3,1.2), box-shadow .35s ease, border-color .3s ease;
+}
+.tool-card:hover { transform: translateY(-5px); box-shadow: 0 26px 52px rgba(25,36,55,.12), 0 8px 20px rgba(23,107,91,.08); }
+.result-panel { perspective: 900px; }
+.result-box { transform-style: preserve-3d; }
+.result-box:hover { transform: translateX(7px) translateZ(6px); }
+.result-box.featured { transition: transform .3s cubic-bezier(.2,.7,.3,1.3), box-shadow .3s ease; }
+.result-box.featured:hover { transform: translateY(-2px) rotateX(5deg) translateZ(8px); box-shadow: 0 16px 28px rgba(23,107,91,.28); }
+button:focus-visible, .el-button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+/* --- Particle background --- */
+.app-root { position: relative; min-height: 100vh; }
+.app-root > :not(.particle-field) { position: relative; z-index: 1; }
+.particle-field { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; opacity: .55; }

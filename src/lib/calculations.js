@@ -11,28 +11,85 @@ export function evaluateExpression(raw) {
   return Number(value.toFixed(10))
 }
 
+export function normalizeTiers(tiers) {
+  return (tiers || [])
+    .map((t, i) => ({
+      min: Number(t.min) || 0,
+      max: Number(t.max) || 0,
+      fee: Number(t.fee) || 0,
+      index: i,
+    }))
+    .filter(t => Number.isFinite(t.min) && Number.isFinite(t.max) && t.max > t.min)
+    .sort((a, b) => a.min - b.min || a.max - b.max)
+}
+
+export function inspectTierFee(weight, tiers) {
+  const sorted = normalizeTiers(tiers)
+  const result = { fee: 0, overflow: false, gap: false, belowRange: false, matched: false }
+  if (!weight || !sorted.length) return result
+  const tier = sorted.find(({ min, max }) => weight > min && weight <= max)
+  if (tier) {
+    result.fee = tier.fee
+    result.matched = true
+    return result
+  }
+  const last = sorted[sorted.length - 1]
+  if (weight > last.max) {
+    const unitRate = last.fee / (last.max - last.min)
+    result.fee = last.fee + (weight - last.max) * unitRate
+    result.overflow = true
+    return result
+  }
+  const prev = [...sorted].reverse().find(({ max }) => max < weight)
+  if (prev) {
+    result.fee = prev.fee
+    result.gap = true
+    return result
+  }
+  result.belowRange = true
+  return result
+}
+
 export function resolveTierFee(weight, tiers) {
-  if (!weight || !tiers?.length) return 0
-  const tier = tiers.find(({ min, max }) => weight > min && weight <= max)
-  if (tier) return Number(tier.fee || 0)
-  const last = tiers.reduce((a, b) => Number(b.max) > Number(a.max) ? b : a)
-  return weight > Number(last.max) ? Number(last.fee || 0) : 0
+  return inspectTierFee(weight, tiers).fee
 }
 
 export function calculateLogisticsQuote(form, tiers) {
-  const freight = Number(form.freight) + resolveTierFee(Number(form.weight), tiers)
-  const base = Number(form.purchase) + freight + Number(form.packing)
-  const total = base * (1 + Number(form.loss) / 100)
-  const tax = total * Number(form.tax) / 100
-  const quote = (total + tax) / (1 - Number(form.profit) / 100)
-  const gross = quote - total - tax
-  return {
+  const purchase = Number(form.purchase) || 0
+  const baseFreight = Number(form.freight) || 0
+  const packing = Number(form.packing) || 0
+  const actualWeight = Number(form.weight) || 0
+  const volumeWeight = Number(form.volumeWeight) || 0
+  const chargeWeight = Math.max(actualWeight, volumeWeight)
+  const tier = inspectTierFee(chargeWeight, tiers)
+  const lossRate = Math.min(Math.max(Number(form.loss) || 0, 0), 99) / 100
+  const taxRate = Math.min(Math.max(Number(form.tax) || 0, 0), 100) / 100
+  const profitRate = Math.min(Math.max(Number(form.profit) || 0, 0), 99) / 100
+  const base = purchase + baseFreight + tier.fee + packing
+  const total = base / (1 - lossRate)
+  const taxShare = taxRate / (1 + taxRate)
+  const denominator = 1 - profitRate - taxShare
+  const result = {
     total,
-    tax,
-    quote,
-    gross,
-    rate: quote ? gross / quote * 100 : 0,
+    tax: 0,
+    quote: 0,
+    gross: 0,
+    rate: 0,
+    valid: denominator > 0,
+    chargeWeight,
+    tierFee: tier.fee,
+    overflow: tier.overflow,
+    gap: tier.gap,
+    belowRange: tier.belowRange,
   }
+  if (!result.valid) return result
+  const quote = total / denominator
+  const tax = quote * taxShare
+  result.tax = tax
+  result.quote = quote
+  result.gross = quote - total - tax
+  result.rate = quote ? result.gross / quote * 100 : 0
+  return result
 }
 
 export function calculateWorkHours({ start, end, breakMin, standard }) {
@@ -64,20 +121,35 @@ export function countWorkdays(startDate, endDate) {
 }
 
 export function calculateMonthlyIrr(principal, payment, periods) {
-  if (principal <= 0 || payment <= 0 || periods < 1) return null
+  const p = Number(principal)
+  const a = Number(payment)
+  const n = Math.floor(Number(periods))
+  if (!Number.isFinite(p) || !Number.isFinite(a) || !Number.isFinite(n) || p <= 0 || a <= 0 || n < 1) return null
+  const total = a * n
+  if (total < p - 1e-9) return null
+  if (Math.abs(total - p) < 1e-9) return 0
   const npv = rate => {
-    let value = -principal
-    for (let i = 1; i <= periods; i += 1) value += payment / ((1 + rate) ** i)
+    let value = -p
+    let pow = 1 + rate
+    for (let i = 1; i <= n; i += 1) {
+      value += a / pow
+      pow *= 1 + rate
+    }
     return value
   }
   let low = -0.9999
   let high = 10
   while (npv(high) > 0 && high < 1e9) high *= 10
-  if (npv(low) * npv(high) > 0) return null
-  for (let n = 0; n < 200; n += 1) {
-    const rate = (low + high) / 2
-    if (npv(rate) > 0) low = rate
-    else high = rate
+  const lowValue = npv(low)
+  const highValue = npv(high)
+  if ((lowValue > 0 && highValue > 0) || (lowValue < 0 && highValue < 0)) return null
+  if (Math.abs(lowValue) < 1e-12) return low
+  if (Math.abs(highValue) < 1e-12) return high
+  for (let i = 0; i < 200; i += 1) {
+    const mid = (low + high) / 2
+    const midValue = npv(mid)
+    if (midValue > 0) low = mid
+    else high = mid
   }
   return (low + high) / 2
 }

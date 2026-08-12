@@ -1,26 +1,33 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Message, CopyDocument, Promotion } from '@element-plus/icons-vue'
+import { ArrowLeft, Message, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { supabase } from '../lib/supabase.js'
 
 const router = useRouter()
-const CONTACT_EMAIL = '2957793882@qq.com'
-const form = reactive({ subject: '', content: '' })
+const form = reactive({ contact: '', subject: '', content: '' })
+const sending = ref(false)
 
-function sendMail() {
+async function sendMail() {
   if (!form.content.trim()) { ElMessage.warning('请填写问题描述'); return }
-  const subject = encodeURIComponent(form.subject.trim() || '链算 Pro 使用问题')
-  const body = encodeURIComponent('请描述你遇到的问题：\n\n' + form.content.trim())
-  window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`
-}
-
-async function copyEmail() {
+  sending.value = true
   try {
-    await navigator.clipboard.writeText(CONTACT_EMAIL)
-    ElMessage.success('邮箱已复制')
-  } catch {
-    ElMessage.error('复制失败，请手动复制')
+    const { data, error } = await supabase.functions.invoke('send-contact', {
+      body: {
+        contact: form.contact.trim(),
+        subject: form.subject.trim(),
+        content: form.content.trim(),
+      },
+    })
+    if (error) throw error
+    if (data?.error) throw new Error(data.error)
+    ElMessage.success('已发送成功，我们会尽快回复你')
+    Object.assign(form, { contact: '', subject: '', content: '' })
+  } catch (e) {
+    ElMessage.error('发送失败：' + (e.message || '请稍后重试'))
+  } finally {
+    sending.value = false
   }
 }
 </script>
@@ -34,25 +41,23 @@ async function copyEmail() {
 
     <section class="contact-hero">
       <h1>遇到问题？联系我们</h1>
-      <p>使用过程中有任何疑问、建议或反馈，都可以直接发邮件给我们。</p>
+      <p>直接在下方填写并发送，我们会收到你的消息并尽快回复。</p>
     </section>
 
-    <section class="contact-grid">
-      <div class="contact-info">
+    <section class="contact-panel">
+      <div class="contact-tip">
         <div class="contact-icon"><el-icon :size="26"><Message /></el-icon></div>
-        <h2>QQ 邮箱联系</h2>
-        <p class="contact-email">{{ CONTACT_EMAIL }}</p>
-        <div class="contact-actions">
-          <el-button type="primary" :icon="Promotion" size="large" @click="sendMail">发送邮件</el-button>
-          <el-button :icon="CopyDocument" size="large" @click="copyEmail">复制邮箱</el-button>
-        </div>
-        <p class="contact-note">收到邮件后一般会在 1-2 个工作日内回复。</p>
+        <h2>快速反馈</h2>
+        <p>不需要知道我们的邮箱，填好内容点发送即可。为了我们能回复你，建议留下你的联系方式。</p>
       </div>
 
       <div class="contact-form-card">
-        <h2>快速写信</h2>
+        <h2>发送反馈</h2>
         <el-form label-position="top">
-          <el-form-item label="主题">
+          <el-form-item label="你的联系方式（选填）">
+            <el-input v-model="form.contact" placeholder="QQ / 微信 / 邮箱，方便我们回复你" />
+          </el-form-item>
+          <el-form-item label="主题（选填）">
             <el-input v-model="form.subject" placeholder="例如：登录问题 / 会员开通问题" />
           </el-form-item>
           <el-form-item label="问题描述">
@@ -63,11 +68,10 @@ async function copyEmail() {
               placeholder="请尽量描述清楚遇到的问题，例如操作步骤、看到的报错信息、账号邮箱等"
             />
           </el-form-item>
-          <el-button type="primary" size="large" :icon="Promotion" style="width:100%" @click="sendMail">
-            打开邮箱发送
+          <el-button type="primary" size="large" :icon="Promotion" style="width:100%" :loading="sending" @click="sendMail">
+            {{ sending ? '发送中...' : '发送反馈' }}
           </el-button>
         </el-form>
-        <p class="form-tip">点击后会用你电脑或手机默认的邮件客户端发送，也可以直接复制邮箱地址手动发送。</p>
       </div>
     </section>
   </div>
@@ -93,29 +97,25 @@ async function copyEmail() {
 .contact-hero h1 { font-size: 32px; margin: 0 0 8px; letter-spacing: -.03em; }
 .contact-hero p { color: var(--muted); font-size: 15px; margin: 0; }
 
-.contact-grid {
-  max-width: 900px; margin: 0 auto; padding: 0 24px 64px;
-  display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px;
+.contact-panel {
+  max-width: 820px; margin: 0 auto; padding: 0 24px 64px;
+  display: grid; grid-template-columns: 1fr 1.3fr; gap: 20px;
 }
-
-.contact-info, .contact-form-card {
+.contact-tip, .contact-form-card {
   background: var(--card); border: 1px solid var(--line);
   border-radius: 16px; padding: 28px;
 }
-.contact-info { display: flex; flex-direction: column; }
+.contact-tip { display: flex; flex-direction: column; }
 .contact-icon {
   width: 52px; height: 52px; border-radius: 14px;
   background: var(--brand-soft); color: var(--brand);
   display: grid; place-items: center; margin-bottom: 18px;
 }
-.contact-info h2, .contact-form-card h2 { margin: 0 0 10px; font-size: 20px; }
-.contact-email { font-size: 16px; font-weight: 700; margin: 0 0 20px; word-break: break-all; }
-.contact-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.contact-note { margin-top: auto; padding-top: 20px; color: var(--muted); font-size: 13px; }
-.form-tip { color: var(--muted); font-size: 12px; margin: 12px 0 0; line-height: 1.7; }
+.contact-tip h2, .contact-form-card h2 { margin: 0 0 10px; font-size: 20px; }
+.contact-tip p { color: var(--muted); font-size: 14px; line-height: 1.8; margin: 0; }
 
 @media (max-width: 700px) {
-  .contact-grid { grid-template-columns: 1fr; }
+  .contact-panel { grid-template-columns: 1fr; }
   .contact-hero h1 { font-size: 26px; }
 }
 </style>

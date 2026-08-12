@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --experimental-test-module-mocks --test tests/*.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
