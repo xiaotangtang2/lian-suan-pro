@@ -69,6 +69,8 @@ npm.cmd run preview
 - `supabase_membership.sql`
 - `supabase_username_login.sql`
 
+后续数据库变更位于 `supabase/migrations/`。其中付款凭证使用私有 Storage bucket，提交前会校验图片类型及 5MB 大小限制，管理员通过短时签名链接查看。
+
 Edge Functions：
 
 - `supabase/functions/ai-proxy`：AI 计算代理

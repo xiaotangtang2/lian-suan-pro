@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Check, CopyDocument } from '@element-plus/icons-vue'
+import { ArrowLeft, Check, CopyDocument, UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
@@ -21,7 +21,10 @@ const qrTab = ref('wechat')
 const orderNo = ref('LC' + Date.now().toString(36).toUpperCase())
 
 const pendingOrder = ref(null)
+const latestRejectedOrder = ref(null)
 const submitting = ref(false)
+const proofFile = ref(null)
+const proofPreview = ref('')
 let statusTimer = null
 
 async function loadMyOrders() {
@@ -32,8 +35,29 @@ async function loadMyOrders() {
     .eq('user_id', state.currentUser.id)
     .order('created_at', { ascending: false })
     .limit(5)
-  const pending = (data || []).find(o => o.status === 'pending')
-  if (pending) pendingOrder.value = pending
+  pendingOrder.value = (data || []).find(o => o.status === 'pending') || null
+  latestRejectedOrder.value = (data || []).find(o => o.status === 'rejected') || null
+}
+
+function selectProof(file) {
+  const raw = file.raw
+  const allowed = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowed.includes(raw?.type)) { ElMessage.error('仅支持 JPG、PNG 或 WebP 图片'); return false }
+  if (raw.size > 5 * 1024 * 1024) { ElMessage.error('付款凭证不能超过 5MB'); return false }
+  if (proofPreview.value) URL.revokeObjectURL(proofPreview.value)
+  proofFile.value = raw
+  proofPreview.value = URL.createObjectURL(raw)
+  return false
+}
+
+async function uploadProof() {
+  const extension = proofFile.value.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `${state.currentUser.id}/${orderNo.value}.${extension}`
+  const { error } = await supabase.storage.from('payment-proofs').upload(path, proofFile.value, {
+    cacheControl: '3600', upsert: false, contentType: proofFile.value.type,
+  })
+  if (error) throw error
+  return path
 }
 
 function copyOrderId() {
@@ -44,8 +68,11 @@ function copyOrderId() {
 async function submitPayment() {
   if (!state.currentUser?.id) { ElMessage.warning('请先登录'); return }
   if (pendingOrder.value) { ElMessage.warning('已有待开通订单，请等待管理员确认'); return }
+  if (!proofFile.value) { ElMessage.warning('请先上传付款凭证'); return }
   submitting.value = true
+  let uploadedPath = ''
   try {
+    uploadedPath = await uploadProof()
     const { data, error } = await supabase
       .from('membership_orders')
       .insert({
@@ -57,14 +84,18 @@ async function submitPayment() {
         amount: Number(activePlan.value.price.replace('¥', '')),
         pay_method: qrTab.value,
         status: 'pending',
+        proof_path: uploadedPath,
+        proof_uploaded_at: new Date().toISOString(),
       })
       .select()
       .single()
     if (error) throw error
     pendingOrder.value = data
+    latestRejectedOrder.value = null
     notifyAdmin(data)
     ElMessage.success('开通申请已提交，管理员确认后会自动解锁')
   } catch (e) {
+    if (uploadedPath) await supabase.storage.from('payment-proofs').remove([uploadedPath])
     ElMessage.error('提交失败：' + (e.message || '请稍后重试'))
   } finally {
     submitting.value = false
@@ -95,6 +126,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', refreshMembership)
   document.removeEventListener('visibilitychange', onStatusVisible)
   if (statusTimer) clearInterval(statusTimer)
+  if (proofPreview.value) URL.revokeObjectURL(proofPreview.value)
 })
 </script>
 
@@ -169,11 +201,19 @@ onBeforeUnmount(() => {
           </div>
           <el-divider />
           <p class="pay-note">
-            付款时请在<strong>备注里填写订单号</strong>，付款后点下方按钮提交开通申请，管理员确认后会自动解锁。
+            付款时请在<strong>备注里填写订单号</strong>，再上传付款截图。管理员核对真实到账后才会开通。
           </p>
+          <el-alert v-if="latestRejectedOrder && !pendingOrder" :title="'上次申请已驳回：' + (latestRejectedOrder.rejection_reason || '凭证或到账信息不符')" type="error" :closable="false" show-icon style="margin-top:16px" />
           <el-alert v-if="pendingOrder" :title="'订单 ' + pendingOrder.order_no + ' 已提交，等待管理员确认收款'" type="info" :closable="false" show-icon style="margin-top:16px" />
-          <el-button v-if="!isMember" type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder" @click="submitPayment">
-            {{ pendingOrder ? "开通申请已提交，等待确认" : "我已付款，申请开通" }}
+          <div v-if="!isMember && !pendingOrder" class="proof-upload">
+            <el-upload :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/webp" :on-change="selectProof">
+              <el-button :icon="UploadFilled">{{ proofFile ? '重新选择凭证' : '上传付款凭证' }}</el-button>
+            </el-upload>
+            <img v-if="proofPreview" :src="proofPreview" alt="付款凭证预览" class="proof-preview" />
+            <small>支持 JPG、PNG、WebP，最大 5MB；凭证仅本人和管理员可查看。</small>
+          </div>
+          <el-button v-if="!isMember" type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder || !proofFile" @click="submitPayment">
+            {{ pendingOrder ? "开通申请已提交，等待确认" : proofFile ? "提交凭证，申请开通" : "请先上传付款凭证" }}
           </el-button>
           <div v-else class="member-done"><el-icon :size="16"><Check /></el-icon> 已是 PRO 会员，全部功能已解锁</div>
         </div>
@@ -288,6 +328,9 @@ onBeforeUnmount(() => {
 .pay-order code { font-size: 14px; background: var(--brand-soft); padding: 4px 10px; border-radius: 6px; }
 
 .pay-note { font-size: 13px; color: var(--muted); line-height: 1.7; margin: 0; }
+.proof-upload { display: grid; gap: 10px; margin-top: 16px; }
+.proof-upload small { color: var(--muted); line-height: 1.5; }
+.proof-preview { width: 100%; max-height: 180px; object-fit: contain; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .member-done {
   display: flex; align-items: center; gap: 8px;
   margin-top: 16px; padding: 14px 16px;

@@ -1,7 +1,7 @@
 ﻿<script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Refresh, Check } from '@element-plus/icons-vue'
+import { ArrowLeft, Refresh, Check, View, Close } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
@@ -17,6 +17,27 @@ const statusMap = {
   pending: { text: '待确认', type: 'warning' },
   paid: { text: '已开通', type: 'success' },
   cancelled: { text: '已取消', type: 'info' },
+  rejected: { text: '已驳回', type: 'danger' },
+}
+
+async function viewProof(order) {
+  if (!order.proof_path) return ElMessage.warning('该订单没有付款凭证')
+  const { data, error } = await supabase.storage.from('payment-proofs').createSignedUrl(order.proof_path, 300)
+  if (error) return ElMessage.error('凭证加载失败：' + error.message)
+  window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+}
+
+async function rejectOrder(order) {
+  try {
+    const { value } = await ElMessageBox.prompt('请填写驳回原因，用户将看到此说明。', '驳回付款申请', {
+      confirmButtonText: '确认驳回', cancelButtonText: '取消', inputPlaceholder: '例如：未查到对应到账记录',
+      inputValidator: value => !!value?.trim() || '必须填写驳回原因', type: 'warning',
+    })
+    const { error } = await supabase.rpc('reject_membership_order', { p_order_id: order.id, p_reason: value.trim() })
+    if (error) throw error
+    ElMessage.success('订单已驳回')
+    await loadOrders()
+  } catch (e) { if (e !== 'cancel') ElMessage.error('驳回失败：' + (e.message || '请稍后重试')) }
 }
 
 async function loadOrders() {
@@ -111,7 +132,11 @@ onBeforeUnmount(() => {
               <el-tag :type="statusMap[row.status]?.type || 'info'" size="small">{{ statusMap[row.status]?.text || row.status }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right">
+          <el-table-column label="凭证" width="90">
+            <template #default="{ row }"><el-button v-if="row.proof_path" text type="primary" :icon="View" @click="viewProof(row)">查看</el-button><span v-else>-</span></template>
+          </el-table-column>
+          <el-table-column prop="rejection_reason" label="驳回原因" min-width="150" show-overflow-tooltip />
+          <el-table-column label="操作" width="210" fixed="right">
             <template #default="{ row }">
               <el-button
                 v-if="row.status === 'pending'"
@@ -122,6 +147,7 @@ onBeforeUnmount(() => {
               >
                 确认收款
               </el-button>
+              <el-button v-if="row.status === 'pending'" type="danger" plain size="small" :icon="Close" @click="rejectOrder(row)">驳回</el-button>
               <span v-else class="done-text">已完成</span>
             </template>
           </el-table-column>
