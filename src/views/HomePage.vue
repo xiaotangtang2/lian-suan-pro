@@ -41,11 +41,18 @@ onBeforeUnmount(() => {
 })
 
 const active = ref('quote')
+const moduleMotionKey = ref(0)
 const modules = [
   ['basic', '基础计算', Operation], ['quote', '物流报价', Van], ['work', '工时工作日', Timer],
   ['irr', '真实 IRR', TrendCharts], ['batch', '批量计算', Files, true], ['formula', '公式模板', DocumentCopy, true],
   ['unit', '单位换算', Switch], ['ai', 'AI 计算', MagicStick]
 ]
+
+function openModule(id) {
+  active.value = id
+  // 即使重复点击当前模块，也重新挂载内容并触发完整入场动效。
+  moduleMotionKey.value += 1
+}
 
 async function onLogout() {
   try {
@@ -85,20 +92,23 @@ async function onLogout() {
         <div class="privacy-pill"><span></span>本地隐私计算</div>
       </section>
       <nav class="module-nav" aria-label="计算模块">
-        <button v-for="item in modules" :key="item[0]" :class="{ active: active === item[0] }" @click="active = item[0]">
+        <button v-for="item in modules" :key="item[0]" :class="{ active: active === item[0] }" @click="openModule(item[0])">
           <el-icon><component :is="item[2]" /></el-icon><span>{{ item[1] }}</span><Lock v-if="item[3] && !isMember" class="mini-lock" />
         </button>
       </nav>
       <div class="tool-area">
-        <section class="tool-card">
-          <BasicCalculator v-if="active === 'basic'" />
-          <LogisticsCalculator v-else-if="active === 'quote'" />
-          <WorkdayCalculator v-else-if="active === 'work'" />
-          <IrrCalculator v-else-if="active === 'irr'" />
-          <BatchCalculator v-else-if="active === 'batch'" :is-member="isMember" />
-          <FormulaTemplates v-else-if="active === 'formula'" :is-member="isMember" />
-          <UnitConverter v-else-if="active === 'unit'" />
-          <AiCalculator v-else :is-member="isMember" />
+        <section :key="moduleMotionKey" class="tool-card module-enter">
+          <div class="module-enter__glow" aria-hidden="true"></div>
+          <div class="module-enter__content">
+            <BasicCalculator v-if="active === 'basic'" />
+            <LogisticsCalculator v-else-if="active === 'quote'" />
+            <WorkdayCalculator v-else-if="active === 'work'" />
+            <IrrCalculator v-else-if="active === 'irr'" />
+            <BatchCalculator v-else-if="active === 'batch'" :is-member="isMember" />
+            <FormulaTemplates v-else-if="active === 'formula'" :is-member="isMember" />
+            <UnitConverter v-else-if="active === 'unit'" />
+            <AiCalculator v-else :is-member="isMember" />
+          </div>
         </section>
         <!-- 广告位：有广告主后取消注释即可启用 -->
         <!-- <aside class="ad-sidebar"><AdBanner placement="sidebar" /></aside> -->
