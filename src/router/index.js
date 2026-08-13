@@ -50,7 +50,15 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const { isLoggedIn, isLoading } = useAuth()
   if (isLoading.value) return next()
-  if (to.meta.requiresAuth && !isLoggedIn.value) return next('/login')
+  // 首页是智能入口：登录用户直接回工作台，访客进入免费体验页。
+  if ((to.name === 'Landing' || to.name === 'Tool') && isLoggedIn.value) return next('/workspace')
+  // 登录页只允许由免费体验页主动进入，防止退出或受限路由自动弹出登录页。
+  if (to.name === 'Login') {
+    if (isLoggedIn.value) return next('/workspace')
+    if (from.name !== 'Landing' && to.query.entry !== 'landing') return next('/')
+  }
+  // 未登录访问工作台、支付页或管理页，统一回免费体验页。
+  if (to.meta.requiresAuth && !isLoggedIn.value) return next('/')
   document.title = to.meta.title || '链算 Pro · 商业计算器'
   const description = document.querySelector('meta[name="description"]')
   if (description && to.meta.description) description.setAttribute('content', to.meta.description)

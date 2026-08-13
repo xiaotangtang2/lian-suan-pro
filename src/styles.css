@@ -103,4 +103,6 @@ button:focus-visible, .el-button:focus-visible { outline: 2px solid var(--brand)
 .motion-toggle.active{background:var(--brand);border-color:var(--brand);color:#fff}
 .tool-preview{touch-action:pan-y}
 .tool-preview.motion-tilting{animation:none!important;transform:translateY(-5px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y))!important;box-shadow:0 20px 34px rgba(23,107,91,.16)}
+.public-tool .access-lock{width:18px!important;height:18px!important;min-width:18px;flex:0 0 18px;color:var(--brand)}
+.public-tool .access-lock svg{width:18px!important;height:18px!important;display:block}
 @media(pointer:coarse){.motion-toggle{display:block}.tool-preview.is-tilting{animation:none!important;transform:translateY(-9px) scale(1.018) rotateX(var(--tilt-x)) rotateY(var(--tilt-y))!important;box-shadow:0 24px 38px rgba(23,107,91,.22)}}

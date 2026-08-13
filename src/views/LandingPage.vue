@@ -11,7 +11,7 @@ let touchMoved=false
 let motionButton=null
 const cardCleanups=[]
 const tools=[['logistics-quote',Van,'物流成本报价','成本、损耗、税费、利润率与阶梯运费一次算清。'],['irr',TrendCharts,'真实 IRR','看清分期背后的真实年化资金成本。'],['workdays',Timer,'工时工作日','班次工时、加班与排除周末的工作日统计。'],['unit-converter',Switch,'物流单位换算','重量、体积、CBM 和材积快捷换算。']]
-function go(path,event){trackEvent(event);router.push(path)}
+function go(path,event){trackEvent(event);router.push(path==='/login'?{path:'/login',query:{entry:'landing'}}:path)}
 function tiltCard(event){
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return
   if(event.pointerType==='touch'&&!event.currentTarget.hasPointerCapture(event.pointerId))return

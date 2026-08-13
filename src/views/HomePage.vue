@@ -118,7 +118,7 @@ async function onLogout() {
       type: 'warning',
     })
     await logout()
-    router.replace('/login')
+    router.replace('/')
   } catch { /* user cancelled */ }
 }
 </script>
