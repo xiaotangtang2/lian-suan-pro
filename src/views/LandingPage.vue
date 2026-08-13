@@ -9,9 +9,12 @@ const motionEnabled=ref(false)
 const motionSupported=typeof window!=='undefined'&&'DeviceOrientationEvent' in window
 let touchMoved=false
 let motionButton=null
+let freeStartButton=null
+let freeStartHandler=null
 const cardCleanups=[]
 const tools=[['logistics-quote',Van,'物流成本报价','成本、损耗、税费、利润率与阶梯运费一次算清。'],['irr',TrendCharts,'真实 IRR','看清分期背后的真实年化资金成本。'],['workdays',Timer,'工时工作日','班次工时、加班与排除周末的工作日统计。'],['unit-converter',Switch,'物流单位换算','重量、体积、CBM 和材积快捷换算。']]
 function go(path,event){trackEvent(event);router.push(path==='/login'?{path:'/login',query:{entry:'landing'}}:path)}
+function scrollToTools(){trackEvent('free_start_click');document.querySelector('#free-tools')?.scrollIntoView({behavior:'smooth',block:'start'})}
 function tiltCard(event){
   if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return
   if(event.pointerType==='touch'&&!event.currentTarget.hasPointerCapture(event.pointerId))return
@@ -77,6 +80,11 @@ async function enableMotion(){
   }catch{ElMessage.warning('未获得方向感应权限，可继续使用触摸倾斜')}
 }
 onMounted(()=>{
+  freeStartButton=[...document.querySelectorAll('.landing-nav button')].find(button=>button.textContent?.trim()==='免费开始')
+  const toolsSection=[...document.querySelectorAll('.landing-section')].find(section=>section.querySelector('.section-copy p')?.textContent?.trim()==='常用工具')
+  if(toolsSection)toolsSection.id='free-tools'
+  freeStartHandler=event=>{event.preventDefault();event.stopImmediatePropagation();scrollToTools()}
+  freeStartButton?.addEventListener('click',freeStartHandler,true)
   document.querySelectorAll('.tool-preview').forEach(card=>{
     const down=event=>pressCard(event)
     const move=event=>moveCard(event)
@@ -102,6 +110,7 @@ onBeforeUnmount(()=>{
   window.removeEventListener('deviceorientation',onOrientation)
   cardCleanups.forEach(cleanup=>cleanup())
   motionButton?.remove()
+  if(freeStartButton&&freeStartHandler)freeStartButton.removeEventListener('click',freeStartHandler,true)
 })
 </script>
 <template><div class="landing"><header class="landing-nav"><router-link to="/" class="landing-brand"><img src="/favicon.png" alt="链算 Pro"/>链算 Pro</router-link><div><el-button text @click="go('/login','login_click')">登录</el-button><el-button type="primary" @click="go('/register','register_click')">免费开始</el-button></div></header><main><section class="landing-hero"><p>LOGISTICS BUSINESS TOOLKIT</p><h1>物流报价算得准，<em>每单利润看得清。</em></h1><div class="landing-lead">面向物流供应链和小商户的商业计算工具。基础功能免费，计算数据优先保存在你的浏览器。</div><div class="landing-cta"><el-button type="primary" size="large" :icon="ArrowRight" @click="go('/tools/logistics-quote','hero_quote_click')">免费试算物流报价</el-button><el-button size="large" @click="go('/register','hero_register_click')">创建免费账户</el-button></div><div class="trust-line"><span>✓ 无需安装</span><span>✓ 本地优先</span><span>✓ 手机电脑都能用</span></div></section><section class="landing-section"><div class="section-copy"><p>常用工具</p><h2>先算一笔，再决定要不要注册。</h2></div><div class="tool-grid"><button v-for="tool in tools" :key="tool[0]" class="tool-preview" @pointerenter="startTilt" @pointermove="tiltCard" @pointerleave="resetTilt" @click="go('/tools/'+tool[0],'tool_preview_click')"><el-icon><component :is="tool[1]"/></el-icon><h3>{{ tool[2] }}</h3><p>{{ tool[3] }}</p><span>立即试算 <ArrowRight /></span></button></div></section><section class="landing-section benefits"><div><p>PRO 会员</p><h2>同一套完整权益，按月或按年灵活续费。</h2><p class="muted">月度与年度会员功能完全一致；年度会员约省 18%，折合 ¥23.75/月。</p></div><ul><li><Check/> Excel 批量导出</li><li><Check/> 保存自定义公式</li><li><Check/> AI 自然语言计算</li><li><Check/> 付款凭证人工审核</li></ul><el-button type="primary" @click="go('/upgrade','landing_upgrade_click')"><Lock/> 查看会员方案</el-button></section><section class="landing-section faq"><div class="section-copy"><p>常见问题</p><h2>把关键信息说清楚。</h2></div><el-collapse><el-collapse-item title="我的计算数据会上传吗？" name="1">基础计算记录、模板和主题偏好优先保存在当前浏览器。AI 计算仅在你主动提交问题时发送到 AI 服务。</el-collapse-item><el-collapse-item title="付款后多久开通？" name="2">上传付款凭证后，管理员会核对真实到账记录；通过后自动开通会员。</el-collapse-item><el-collapse-item title="会员到期后会怎样？" name="3">高级功能会自动重新锁定。提前续费会从当前到期日继续顺延。</el-collapse-item></el-collapse></section></main><footer>链算 Pro · <router-link to="/contact">联系我们</router-link> · <router-link to="/privacy">隐私说明</router-link></footer></div></template>

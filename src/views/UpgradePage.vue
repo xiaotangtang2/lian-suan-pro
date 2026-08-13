@@ -74,7 +74,7 @@ function copyOrderId() {
 }
 
 async function submitPayment() {
-  if (!state.currentUser?.id) { ElMessage.warning('请先登录'); return }
+  if (!state.currentUser?.id) { ElMessage.warning('请先登录后提交付款凭证'); router.push({ path: '/login', query: { entry: 'landing' } }); return }
   if (pendingOrder.value) { ElMessage.warning('已有待开通订单，请等待管理员确认'); return }
   if (!proofFile.value) { ElMessage.warning('请先上传付款凭证'); return }
   submitting.value = true
@@ -221,8 +221,8 @@ onBeforeUnmount(() => {
             <img v-if="proofPreview" :src="proofPreview" alt="付款凭证预览" class="proof-preview" />
             <small>{{ auditHint }} 支持 JPG、PNG、WebP，最大 5MB；凭证仅本人和管理员可查看。</small>
           </div>
-          <el-button type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder || !proofFile" @click="submitPayment">
-            {{ pendingOrder ? "申请已提交，等待确认" : proofFile ? (isMember ? "提交凭证，续费会员" : "提交凭证，申请开通") : "请先上传付款凭证" }}
+          <el-button type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder || (!!state.currentUser && !proofFile)" @click="submitPayment">
+            {{ !state.currentUser ? "登录后提交付款凭证" : pendingOrder ? "申请已提交，等待确认" : proofFile ? (isMember ? "提交凭证，续费会员" : "提交凭证，申请开通") : "请先上传付款凭证" }}
           </el-button>
           <div v-if="isMember" class="member-done"><el-icon :size="16"><Check /></el-icon><span>PRO 会员有效期至 {{ memberExpiryText }}，续费将在当前到期日后顺延</span></div>
         </div>

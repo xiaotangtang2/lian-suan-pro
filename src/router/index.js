@@ -26,7 +26,7 @@ const routes = [
     path: '/upgrade',
     name: 'Upgrade',
     component: () => import('../views/UpgradePage.vue'),
-    meta: { requiresAuth: true, robots: 'noindex,nofollow' },
+    meta: { robots: 'noindex,nofollow' },
   },
   {
     path: '/admin',
