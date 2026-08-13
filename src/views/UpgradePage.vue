@@ -10,7 +10,8 @@ import { trackEvent } from '../utils/analytics.js'
 const router = useRouter()
 const { state, isMember, refreshMembership } = useAuth()
 
-const selectedPlan = ref('year')
+// 会员方案页默认展示月付，用户仍可主动切换为年度优惠套餐。
+const selectedPlan = ref('month')
 const memberBenefits = ['全部 8 个计算模块', 'Excel 批量导出', '自定义公式模板', 'AI 自然语言计算']
 const plans = [
   { id: 'month', name: '月度会员', amount: 29, price: '¥29', period: '/月', desc: '按月付费，灵活使用' },
