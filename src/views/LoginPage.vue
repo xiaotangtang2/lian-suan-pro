@@ -43,7 +43,7 @@ async function onEmailSubmit() {
   const result = await login(form.email.trim(), form.password)
   loading.value = false
   if (!result.ok) { error.value = result.error; return }
-  router.replace('/')
+  router.replace('/workspace')
 }
 
 async function onAccountSubmit() {
@@ -54,7 +54,7 @@ async function onAccountSubmit() {
   const result = await loginWithAccount(accountForm.account.trim(), accountForm.password)
   loading.value = false
   if (!result.ok) { error.value = result.error; return }
-  router.replace('/')
+  router.replace('/workspace')
 }
 
 async function sendCode() {
@@ -78,7 +78,7 @@ async function onPhoneSubmit() {
   const result = await loginWithPhone(normalizePhone(phoneForm.phone), phoneForm.code.trim())
   loading.value = false
   if (!result.ok) { error.value = result.error; return }
-  router.replace('/')
+  router.replace('/workspace')
 }
 
 async function onOAuth(provider, label) {

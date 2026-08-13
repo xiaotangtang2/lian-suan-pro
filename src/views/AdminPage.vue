@@ -1,16 +1,19 @@
 ﻿<script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Refresh, Check, View, Close } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
+import { trackEvent } from '../utils/analytics.js'
 
 const router = useRouter()
 const { state, isAdmin, refreshMembership } = useAuth()
 
 const orders = ref([])
 const loading = ref(false)
+const statusFilter = ref('pending')
+const filteredOrders = computed(() => statusFilter.value === 'all' ? orders.value : orders.value.filter(order => order.status === statusFilter.value))
 let timer = null
 
 const statusMap = {
@@ -36,6 +39,7 @@ async function rejectOrder(order) {
     const { error } = await supabase.rpc('reject_membership_order', { p_order_id: order.id, p_reason: value.trim() })
     if (error) throw error
     ElMessage.success('订单已驳回')
+    trackEvent('payment_rejected', { plan: order.plan_id })
     await loadOrders()
   } catch (e) { if (e !== 'cancel') ElMessage.error('驳回失败：' + (e.message || '请稍后重试')) }
 }
@@ -71,6 +75,7 @@ async function confirmOrder(order) {
     if (error) throw error
     if (data === false) throw new Error('开通失败，请稍后重试')
     ElMessage.success('已确认收款，会员已开通')
+    trackEvent('payment_confirmed', { plan: order.plan_id })
     await loadOrders()
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('操作失败：' + (e.message || '请稍后重试'))
@@ -91,7 +96,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="admin-page">
     <header class="admin-topbar">
-      <el-button :icon="ArrowLeft" text @click="router.push('/')">返回工作台</el-button>
+      <el-button :icon="ArrowLeft" text @click="router.push('/workspace')">返回工作台</el-button>
       <span class="admin-user">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span>
     </header>
 
@@ -114,7 +119,8 @@ onBeforeUnmount(() => {
       />
 
       <div v-else class="admin-table">
-        <el-table :data="orders" v-loading="loading" stripe empty-text="暂时没有订单">
+        <div class="order-filters"><el-radio-group v-model="statusFilter"><el-radio-button label="pending">待审核</el-radio-button><el-radio-button label="paid">已通过</el-radio-button><el-radio-button label="rejected">已驳回</el-radio-button><el-radio-button label="all">全部</el-radio-button></el-radio-group><span>共 {{ filteredOrders.length }} 笔</span></div>
+        <el-table :data="filteredOrders" v-loading="loading" stripe empty-text="暂时没有订单">
           <el-table-column prop="created_at" label="提交时间" min-width="170">
             <template #default="{ row }">{{ new Date(row.created_at).toLocaleString('zh-CN', { hour12: false }) }}</template>
           </el-table-column>
@@ -186,6 +192,7 @@ onBeforeUnmount(() => {
 .admin-head p { color: var(--muted); font-size: 14px; margin: 0; }
 
 .admin-table { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.order-filters{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:var(--muted);font-size:13px}
 .done-text { color: var(--muted); font-size: 13px; }
 
 @media (max-width: 600px) {

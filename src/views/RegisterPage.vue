@@ -70,7 +70,7 @@ async function onSubmit() {
     }, 3000)
     return
   }
-  router.replace('/')
+  router.replace('/workspace')
 }
 
 
@@ -82,7 +82,7 @@ watch(isLoggedIn, (val) => {
   if (val && waitingConfirm.value) {
     waitingConfirm.value = false
     confirmOpen.value = false
-    router.replace('/')
+    router.replace('/workspace')
   }
 })
 </script>

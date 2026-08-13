@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /register
+Disallow: /upgrade
+Disallow: /admin
+Disallow: /workspace
 
 Sitemap: https://lian-suan-pro.pages.dev/sitemap.xml

@@ -5,6 +5,7 @@ import { ArrowLeft, Check, CopyDocument, UploadFilled } from '@element-plus/icon
 import { ElMessage } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
+import { trackEvent } from '../utils/analytics.js'
 
 const router = useRouter()
 const { state, isMember, refreshMembership } = useAuth()
@@ -22,6 +23,7 @@ const memberExpiryText = computed(() => {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '有效期未知' : date.toLocaleString('zh-CN', { hour12: false })
 })
+const auditHint = computed(() => pendingOrder.value ? `已于 ${new Date(pendingOrder.value.created_at).toLocaleString('zh-CN', { hour12: false })} 提交，通常会在工作日 24 小时内核验。` : '凭证请清晰包含付款金额、付款时间、收款方和订单号；通常会在工作日 24 小时内核验。')
 
 const qrTab = ref('wechat')
 const orderNo = ref('LC' + Date.now().toString(36).toUpperCase())
@@ -98,6 +100,7 @@ async function submitPayment() {
     if (error) throw error
     pendingOrder.value = data
     latestRejectedOrder.value = null
+    trackEvent('payment_proof_submitted', { plan: activePlan.value.id, pay_method: qrTab.value })
     notifyAdmin(data)
     ElMessage.success('开通申请已提交，管理员确认后会自动解锁')
   } catch (e) {
@@ -139,7 +142,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="upgrade-page">
     <header class="up-topbar">
-      <el-button :icon="ArrowLeft" text @click="router.push('/')">返回工作台</el-button>
+      <el-button :icon="ArrowLeft" text @click="router.push('/workspace')">返回工作台</el-button>
 <span class="up-user">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span><el-tag v-if="isMember" type="warning" effect="plain" style="margin-left:8px">PRO 会员</el-tag>
     </header>
 
@@ -210,13 +213,13 @@ onBeforeUnmount(() => {
             付款时请在<strong>备注里填写订单号</strong>，再上传付款截图。管理员核对真实到账后才会开通。
           </p>
           <el-alert v-if="latestRejectedOrder && !pendingOrder" :title="'上次申请已驳回：' + (latestRejectedOrder.rejection_reason || '凭证或到账信息不符')" type="error" :closable="false" show-icon style="margin-top:16px" />
-          <el-alert v-if="pendingOrder" :title="'订单 ' + pendingOrder.order_no + ' 已提交，等待管理员确认收款'" type="info" :closable="false" show-icon style="margin-top:16px" />
+          <el-alert v-if="pendingOrder" :title="'订单 ' + pendingOrder.order_no + ' 已提交，等待管理员确认收款'" :description="auditHint" type="info" :closable="false" show-icon style="margin-top:16px" />
           <div v-if="!pendingOrder" class="proof-upload">
             <el-upload :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/webp" :on-change="selectProof">
               <el-button :icon="UploadFilled">{{ proofFile ? '重新选择凭证' : '上传付款凭证' }}</el-button>
             </el-upload>
             <img v-if="proofPreview" :src="proofPreview" alt="付款凭证预览" class="proof-preview" />
-            <small>支持 JPG、PNG、WebP，最大 5MB；凭证仅本人和管理员可查看。</small>
+            <small>{{ auditHint }} 支持 JPG、PNG、WebP，最大 5MB；凭证仅本人和管理员可查看。</small>
           </div>
           <el-button type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder || !proofFile" @click="submitPayment">
             {{ pendingOrder ? "申请已提交，等待确认" : proofFile ? (isMember ? "提交凭证，续费会员" : "提交凭证，申请开通") : "请先上传付款凭证" }}

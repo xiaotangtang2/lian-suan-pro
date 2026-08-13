@@ -1,15 +1,14 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { defineAsyncComponent, ref, onMounted, onBeforeUnmount } from 'vue'
 import { Moon, Sunny, Lock, Operation, Van, Timer, TrendCharts, DocumentCopy, Files, Switch, MagicStick, SwitchButton, List } from '@element-plus/icons-vue'
-import BasicCalculator from '../components/BasicCalculator.vue'
-import LogisticsCalculator from '../components/LogisticsCalculator.vue'
-import WorkdayCalculator from '../components/WorkdayCalculator.vue'
-import IrrCalculator from '../components/IrrCalculator.vue'
-import BatchCalculator from '../components/BatchCalculator.vue'
-import FormulaTemplates from '../components/FormulaTemplates.vue'
-import UnitConverter from '../components/UnitConverter.vue'
-import AiCalculator from '../components/AiCalculator.vue'
-import AdBanner from '../components/AdBanner.vue'
+const BasicCalculator = defineAsyncComponent(() => import('../components/BasicCalculator.vue'))
+const LogisticsCalculator = defineAsyncComponent(() => import('../components/LogisticsCalculator.vue'))
+const WorkdayCalculator = defineAsyncComponent(() => import('../components/WorkdayCalculator.vue'))
+const IrrCalculator = defineAsyncComponent(() => import('../components/IrrCalculator.vue'))
+const BatchCalculator = defineAsyncComponent(() => import('../components/BatchCalculator.vue'))
+const FormulaTemplates = defineAsyncComponent(() => import('../components/FormulaTemplates.vue'))
+const UnitConverter = defineAsyncComponent(() => import('../components/UnitConverter.vue'))
+const AiCalculator = defineAsyncComponent(() => import('../components/AiCalculator.vue'))
 import { useAuth } from '../stores/auth.js'
 import { useTheme } from '../stores/theme.js'
 import { useRouter } from 'vue-router'

@@ -35,7 +35,7 @@ async function sendMail() {
 <template>
   <div class="contact-page">
     <header class="contact-topbar">
-      <el-button :icon="ArrowLeft" text @click="router.push('/')">返回工作台</el-button>
+      <el-button :icon="ArrowLeft" text @click="router.push('/')">返回首页</el-button>
       <span class="contact-brand">链算 Pro · 联系我们</span>
     </header>
 
