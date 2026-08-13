@@ -17,7 +17,8 @@ function versionFilePlugin() {
       } catch {}
       // updates.json 只代表本次发布，旧版本内容不会累计进新弹窗。
       writeFileSync(resolve('dist', 'version.json'), JSON.stringify({
-        version: release || Date.now().toString(36),
+        // 每次构建都生成唯一版本号，避免仅修改界面却忘记改说明时漏掉更新提醒。
+        version: `${release || 'release'}-${Date.now().toString(36)}`,
         items,
       }))
     },
