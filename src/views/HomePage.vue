@@ -12,13 +12,15 @@ const AiCalculator = defineAsyncComponent(() => import('../components/AiCalculat
 import { useAuth } from '../stores/auth.js'
 import { useTheme } from '../stores/theme.js'
 import { useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
 const { dark } = useTheme()
 const { state, isMember, isAdmin, logout, refreshMembership } = useAuth()
 
 let refreshTimer = null
+const moduleMotionEnabled = ref(false)
+const moduleMotionSupported = typeof window !== 'undefined' && 'DeviceOrientationEvent' in window
 async function syncMembership() {
   await refreshMembership()
 }
@@ -37,6 +39,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', syncMembership)
   document.removeEventListener('visibilitychange', onVisibilityChange)
   if (refreshTimer) clearInterval(refreshTimer)
+  window.removeEventListener('deviceorientation', onModuleOrientation)
 })
 
 const active = ref('quote')
@@ -51,6 +54,60 @@ function openModule(id) {
   active.value = id
   // 即使重复点击当前模块，也重新挂载内容并触发完整入场动效。
   moduleMotionKey.value += 1
+}
+
+function updateNavTilt(button, clientX, clientY, strength = 1) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const rect = button.getBoundingClientRect()
+  const x = (clientX - rect.left) / rect.width - 0.5
+  const y = (clientY - rect.top) / rect.height - 0.5
+  button.style.setProperty('--nav-tilt-x', `${-y * 12 * strength}deg`)
+  button.style.setProperty('--nav-tilt-y', `${x * 15 * strength}deg`)
+  button.style.setProperty('--nav-glow-x', `${(x + 0.5) * 100}%`)
+  button.style.setProperty('--nav-glow-y', `${(y + 0.5) * 100}%`)
+}
+function startNavTilt(event) {
+  const button = event.currentTarget
+  if (event.pointerType === 'touch') button.setPointerCapture(event.pointerId)
+  button.classList.add('nav-tilting')
+  updateNavTilt(button, event.clientX, event.clientY, event.pointerType === 'touch' ? 0.85 : 1)
+}
+function moveNavTilt(event) {
+  const button = event.currentTarget
+  if (event.pointerType === 'touch' && !button.hasPointerCapture(event.pointerId)) return
+  button.classList.add('nav-tilting')
+  updateNavTilt(button, event.clientX, event.clientY, event.pointerType === 'touch' ? 0.85 : 1)
+}
+function resetNavTilt(event) {
+  const button = event.currentTarget
+  if (event.pointerId !== undefined && button.hasPointerCapture?.(event.pointerId)) button.releasePointerCapture(event.pointerId)
+  button.classList.remove('nav-tilting')
+  button.style.setProperty('--nav-tilt-x', '0deg')
+  button.style.setProperty('--nav-tilt-y', '0deg')
+}
+function onModuleOrientation(event) {
+  if (!moduleMotionEnabled.value || event.gamma == null || event.beta == null) return
+  const tiltY = Math.max(-10, Math.min(10, event.gamma * 0.38))
+  const tiltX = Math.max(-7, Math.min(7, (event.beta - 45) * -0.2))
+  document.querySelectorAll('.module-nav button').forEach((button) => {
+    button.classList.add('nav-motion')
+    button.style.setProperty('--nav-tilt-x', `${tiltX}deg`)
+    button.style.setProperty('--nav-tilt-y', `${tiltY}deg`)
+  })
+}
+async function enableModuleMotion() {
+  if (!moduleMotionSupported) return ElMessage.info('当前设备不支持方向感应')
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const permission = await DeviceOrientationEvent.requestPermission()
+      if (permission !== 'granted') throw new Error('denied')
+    }
+    moduleMotionEnabled.value = true
+    window.addEventListener('deviceorientation', onModuleOrientation, { passive: true })
+    ElMessage.success('模块卡片体感倾斜已开启')
+  } catch {
+    ElMessage.warning('未获得方向感应权限，仍可使用触摸倾斜')
+  }
 }
 
 async function onLogout() {
@@ -91,10 +148,13 @@ async function onLogout() {
         <div class="privacy-pill"><span></span>本地隐私计算</div>
       </section>
       <nav class="module-nav" aria-label="计算模块">
-        <button v-for="item in modules" :key="item[0]" :class="{ active: active === item[0] }" @click="openModule(item[0])">
+        <button v-for="item in modules" :key="item[0]" :class="{ active: active === item[0] }" @pointerenter="startNavTilt" @pointerdown="startNavTilt" @pointermove="moveNavTilt" @pointerup="resetNavTilt" @pointercancel="resetNavTilt" @pointerleave="resetNavTilt" @click="openModule(item[0])">
           <el-icon><component :is="item[2]" /></el-icon><span>{{ item[1] }}</span><Lock v-if="item[3] && !isMember" class="mini-lock" />
         </button>
       </nav>
+      <div v-if="moduleMotionSupported" class="module-motion-row">
+        <el-button size="small" round :type="moduleMotionEnabled ? 'success' : 'default'" @click="enableModuleMotion">{{ moduleMotionEnabled ? '体感倾斜已开启' : '开启模块卡片体感倾斜' }}</el-button>
+      </div>
       <div class="tool-area">
         <section :key="moduleMotionKey" class="tool-card module-enter">
           <div class="module-enter__glow" aria-hidden="true"></div>
@@ -128,4 +188,13 @@ async function onLogout() {
   white-space: nowrap;
 }
 .contact-link { color: var(--brand); text-decoration: none; font-weight: 600; }
+.module-motion-row { display: none; justify-content: flex-end; margin: -6px 0 14px; }
+.module-nav { perspective: 1000px; }
+.module-nav button { --nav-tilt-x: 0deg; --nav-tilt-y: 0deg; --nav-glow-x: 50%; --nav-glow-y: 50%; overflow: hidden; transform-style: preserve-3d; transform-origin: center; touch-action: pan-y; will-change: transform; }
+.module-nav button::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at var(--nav-glow-x) var(--nav-glow-y), rgba(79,196,168,.3), transparent 48%); transition: opacity .18s; }
+.module-nav button > * { position: relative; z-index: 1; transform: translateZ(12px); }
+.module-nav button.nav-tilting { transform: translateY(-6px) scale(1.025) rotateX(var(--nav-tilt-x)) rotateY(var(--nav-tilt-y)); box-shadow: 0 18px 30px rgba(23,107,91,.2); transition: transform .07s linear, box-shadow .18s ease; }
+.module-nav button.nav-tilting::after { opacity: 1; }
+.module-nav button.nav-motion { transform: translateY(-2px) rotateX(var(--nav-tilt-x)) rotateY(var(--nav-tilt-y)); }
+@media (pointer: coarse) { .module-motion-row { display: flex; } .module-nav button.nav-tilting { transform: translateY(-5px) scale(1.018) rotateX(var(--nav-tilt-x)) rotateY(var(--nav-tilt-y)); } }
 </style>
