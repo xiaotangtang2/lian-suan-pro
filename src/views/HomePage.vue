@@ -126,7 +126,7 @@ async function onLogout() {
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <div class="brand"><div class="brand-mark">链</div><div><strong>链算 Pro</strong><span>物流商业计算工作台</span></div></div>
+      <div class="brand"><img class="brand-mark" src="/favicon.png" alt="链算 Pro"/><div><strong>链算 Pro</strong><span>物流商业计算工作台</span></div></div>
       <div class="header-actions">
         <span class="user-email">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span>
         <el-tag v-if="isMember" type="warning" effect="plain">PRO 会员</el-tag>
@@ -188,6 +188,7 @@ async function onLogout() {
   white-space: nowrap;
 }
 .contact-link { color: var(--brand); text-decoration: none; font-weight: 600; }
+.brand-mark { width: 46px; height: 46px; padding: 0; border-radius: 11px; background: transparent; object-fit: contain; display: block; }
 .module-motion-row { display: none; justify-content: flex-end; margin: -6px 0 14px; }
 .module-nav { perspective: 1000px; }
 .module-nav button { --nav-tilt-x: 0deg; --nav-tilt-y: 0deg; --nav-glow-x: 50%; --nav-glow-y: 50%; overflow: hidden; transform-style: preserve-3d; transform-origin: center; touch-action: pan-y; will-change: transform; }
