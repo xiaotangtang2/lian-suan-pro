@@ -1,12 +1,73 @@
 export function evaluateExpression(raw) {
-  let safe = String(raw)
+  const safe = String(raw)
     .replaceAll('×', '*')
     .replaceAll('÷', '/')
     .replaceAll('−', '-')
-  safe = safe.replace(/(\d+(?:\.\d+)?)([+-])(\d+(?:\.\d+)?)%/g, '($1$2($1*$3/100))')
-  safe = safe.replace(/(\d+(?:\.\d+)?)%/g, '($1/100)')
-  if (!/^[\d+\-*/().\s]+$/.test(safe)) throw new Error('invalid')
-  const value = Function(`"use strict";return (${safe})`)()
+  if (!/^[\d+\-*/().%\s]+$/.test(safe)) throw new Error('invalid')
+
+  // 用一个小型表达式解析器实现计算器百分比语义：
+  // 100 + 10% = 110，继续 + 10% = 121；100 × 90% × 95% = 85.5。
+  let index = 0
+  const skip = () => { while (/\s/.test(safe[index] || '')) index += 1 }
+  const primary = () => {
+    skip()
+    let value
+    if (safe[index] === '(') {
+      index += 1
+      value = addition()
+      skip()
+      if (safe[index] !== ')') throw new Error('invalid')
+      index += 1
+    } else {
+      const match = safe.slice(index).match(/^(?:\d+(?:\.\d*)?|\.\d+)/)
+      if (!match) throw new Error('invalid')
+      value = Number(match[0])
+      index += match[0].length
+    }
+    skip()
+    if (safe[index] === '%') {
+      index += 1
+      return { value: value / 100, percent: true }
+    }
+    return { value, percent: false }
+  }
+  const unary = () => {
+    skip()
+    if (safe[index] === '+' || safe[index] === '-') {
+      const sign = safe[index++] === '-' ? -1 : 1
+      const item = unary()
+      return { value: sign * item.value, percent: item.percent }
+    }
+    return primary()
+  }
+  const multiplication = () => {
+    let left = unary()
+    while (true) {
+      skip()
+      const operator = safe[index]
+      if (operator !== '*' && operator !== '/') break
+      index += 1
+      const right = unary()
+      left = { value: operator === '*' ? left.value * right.value : left.value / right.value, percent: false }
+    }
+    return left
+  }
+  const addition = () => {
+    let left = multiplication()
+    while (true) {
+      skip()
+      const operator = safe[index]
+      if (operator !== '+' && operator !== '-') break
+      index += 1
+      const right = multiplication()
+      const delta = right.percent ? left.value * right.value : right.value
+      left = { value: operator === '+' ? left.value + delta : left.value - delta, percent: false }
+    }
+    return left.value
+  }
+  const value = addition()
+  skip()
+  if (index !== safe.length) throw new Error('invalid')
   if (!Number.isFinite(value)) throw new Error('invalid')
   return Number(value.toFixed(10))
 }
@@ -94,16 +155,20 @@ export function calculateLogisticsQuote(form, tiers) {
 
 export function calculateWorkHours({ start, end, breakMin, standard }) {
   const toMin = time => {
+    if (!/^\d{2}:\d{2}$/.test(String(time || ''))) return null
     const [h, m] = time.split(':').map(Number)
-    return h * 60 + m
+    return h >= 0 && h < 24 && m >= 0 && m < 60 ? h * 60 + m : null
   }
   const startMin = toMin(start)
   const endMin = toMin(end)
+  if (startMin === null || endMin === null) return { hours: 0, overtime: 0 }
   const span = (endMin < startMin ? endMin + 1440 : endMin) - startMin
-  const hours = Math.max(0, (span - Number(breakMin)) / 60)
+  const safeBreak = Math.max(0, Number(breakMin) || 0)
+  const safeStandard = Math.max(0, Number(standard) || 0)
+  const hours = Math.max(0, (span - safeBreak) / 60)
   return {
     hours,
-    overtime: Math.max(0, hours - Number(standard)),
+    overtime: Math.max(0, hours - safeStandard),
   }
 }
 
@@ -172,6 +237,9 @@ export function buildBatchRows(nums, mode, rate) {
 export function evaluateFormula(formula, params, values) {
   if (!/^[\w\d+\-*/().\s]+$/.test(String(formula))) throw new Error('formula illegal')
   const safeParams = (params || []).map(name => String(name).trim()).filter(Boolean)
+  if (safeParams.some(name => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) || new Set(safeParams).size !== safeParams.length) {
+    throw new Error('parameter illegal')
+  }
   const args = safeParams.map(name => Number(values[name] || 0))
   const value = Function(...safeParams, `"use strict";return (${formula})`)(...args)
   if (!Number.isFinite(value)) throw new Error('non-finite result')
@@ -198,6 +266,7 @@ export const unitLabels = {
 
 export function convertUnits(type, value, from) {
   const config = unitConfigs[type]
+  if (!config || !(from in config) || !Number.isFinite(Number(value))) return []
   return Object.entries(config).map(([unit, factor]) => ({
     unit,
     value: Number(value) * config[from] / factor,

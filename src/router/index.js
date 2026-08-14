@@ -32,7 +32,7 @@ const routes = [
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminPage.vue'),
-    meta: { requiresAuth: true, robots: 'noindex,nofollow' },
+    meta: { requiresAuth: true, requiresAdmin: true, robots: 'noindex,nofollow' },
   },
   {
     path: '/workspace',
@@ -40,6 +40,7 @@ const routes = [
     component: () => import('../views/HomePage.vue'),
     meta: { requiresAuth: true, robots: 'noindex,nofollow' },
   },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
 const router = createRouter({
@@ -48,10 +49,13 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  const { isLoggedIn, isLoading } = useAuth()
+  const { isLoggedIn, isAdmin, isLoading } = useAuth()
   if (isLoading.value) return next()
+  const publicTools = new Set(['logistics-quote', 'irr', 'workdays', 'unit-converter'])
+  if (to.name === 'Tool' && !publicTools.has(String(to.params.slug))) return next('/tools/logistics-quote')
   // 首页是智能入口：登录用户直接回工作台，访客进入免费体验页。
   if ((to.name === 'Landing' || to.name === 'Tool') && isLoggedIn.value) return next('/workspace')
+  if (to.meta.guest && isLoggedIn.value) return next('/workspace')
   // 登录页只允许由免费体验页主动进入，防止退出或受限路由自动弹出登录页。
   if (to.name === 'Login') {
     if (isLoggedIn.value) return next('/workspace')
@@ -59,6 +63,7 @@ router.beforeEach((to, from, next) => {
   }
   // 未登录访问工作台、支付页或管理页，统一回免费体验页。
   if (to.meta.requiresAuth && !isLoggedIn.value) return next('/')
+  if (to.meta.requiresAdmin && !isAdmin.value) return next('/workspace')
   document.title = to.meta.title || '链算 Pro · 商业计算器'
   const description = document.querySelector('meta[name="description"]')
   if (description && to.meta.description) description.setAttribute('content', to.meta.description)

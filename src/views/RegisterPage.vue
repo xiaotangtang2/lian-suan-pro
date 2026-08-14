@@ -144,7 +144,7 @@ watch(isLoggedIn, (val) => {
         </el-button>
 
         <p class="auth-switch">
-          已有账号？<router-link to="/login">返回登录</router-link>
+          已有账号？<router-link :to="{ path: '/login', query: { entry: 'landing' } }">返回登录</router-link>
         </p>
       </el-form>
 

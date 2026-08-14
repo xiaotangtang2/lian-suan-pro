@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowLeft, Check, CopyDocument, UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -27,6 +27,8 @@ const memberExpiryText = computed(() => {
 const auditHint = computed(() => pendingOrder.value ? `已于 ${new Date(pendingOrder.value.created_at).toLocaleString('zh-CN', { hour12: false })} 提交，通常会在工作日 24 小时内核验。` : '凭证请清晰包含付款金额、付款时间、收款方和订单号；通常会在工作日 24 小时内核验。')
 
 const qrTab = ref('wechat')
+const qrLoaded = ref(false)
+watch(qrTab, () => { qrLoaded.value = false })
 const orderNo = ref('LC' + Date.now().toString(36).toUpperCase())
 
 const pendingOrder = ref(null)
@@ -144,7 +146,7 @@ onBeforeUnmount(() => {
   <div class="upgrade-page">
     <header class="up-topbar">
       <el-button :icon="ArrowLeft" text @click="router.push(state.currentUser ? '/workspace' : '/')">返回工作台</el-button>
-<span class="up-user">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span><el-tag v-if="isMember" type="warning" effect="plain" style="margin-left:8px">PRO 会员</el-tag>
+<span class="up-user">{{ state.currentUser?.email || state.currentUser?.phone || '未登录' }}</span><el-tag v-if="isMember" type="warning" effect="plain" style="margin-left:8px">PRO 会员</el-tag>
     </header>
 
     <section class="up-hero">
@@ -188,10 +190,11 @@ onBeforeUnmount(() => {
               :src="qrTab === 'wechat' ? '/qr-wechat.png' : '/qr-alipay.png'"
               :alt="qrTab === 'wechat' ? '微信收款码' : '支付宝收款码'"
               class="qr-img"
-              @error="(e) => e.target.style.display = 'none'"
+              @load="qrLoaded = true"
+              @error="qrLoaded = false"
             />
             <!-- 图片没放时的占位提示 -->
-            <div class="qr-placeholder">
+            <div v-show="!qrLoaded" class="qr-placeholder">
               <span class="qr-icon">{{ qrTab === 'wechat' ? '💚' : '💙' }}</span>
               <span class="qr-text">{{ qrTab === 'wechat' ? '微信收款码' : '支付宝收款码' }}</span>
               <span class="qr-hint">把收款码截图放到<br>public/qr-wechat.png<br>public/qr-alipay.png</span>
@@ -215,7 +218,8 @@ onBeforeUnmount(() => {
           </p>
           <el-alert v-if="latestRejectedOrder && !pendingOrder" :title="'上次申请已驳回：' + (latestRejectedOrder.rejection_reason || '凭证或到账信息不符')" type="error" :closable="false" show-icon style="margin-top:16px" />
           <el-alert v-if="pendingOrder" :title="'订单 ' + pendingOrder.order_no + ' 已提交，等待管理员确认收款'" :description="auditHint" type="info" :closable="false" show-icon style="margin-top:16px" />
-          <div v-if="!pendingOrder" class="proof-upload">
+          <el-alert v-if="!state.currentUser" title="请先登录，再上传并提交付款凭证" type="info" :closable="false" show-icon style="margin-top:16px" />
+          <div v-if="state.currentUser && !pendingOrder" class="proof-upload">
             <el-upload :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/webp" :on-change="selectProof">
               <el-button :icon="UploadFilled">{{ proofFile ? '重新选择凭证' : '上传付款凭证' }}</el-button>
             </el-upload>
