@@ -1,5 +1,47 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '../stores/auth.js'
+import seoPages from '../../seo-pages.json'
+
+const siteOrigin = 'https://lian-suan-pro.pages.dev'
+const publicTools = new Set(['logistics-quote', 'irr', 'workdays', 'unit-converter'])
+
+function updateSeo(to) {
+  const seo = seoPages.find(page => page.path === to.path)
+  const title = seo?.title || to.meta.title || '链算 Pro · 商业计算器'
+  const descriptionText = seo?.description || '链算 Pro 物流商业计算工具'
+  const canonicalUrl = `${siteOrigin}${seo?.path || to.path}`
+  document.title = title
+  const setMeta = (selector, value) => document.querySelector(selector)?.setAttribute('content', value)
+  setMeta('meta[name="description"]', descriptionText)
+  setMeta('meta[name="keywords"]', seo?.keywords?.join(',') || '')
+  setMeta('meta[name="robots"]', to.meta.robots || 'index,follow')
+  setMeta('meta[property="og:title"]', title)
+  setMeta('meta[property="og:description"]', descriptionText)
+  setMeta('meta[property="og:url"]', canonicalUrl)
+  setMeta('meta[name="twitter:title"]', title)
+  setMeta('meta[name="twitter:description"]', descriptionText)
+  document.querySelector('link[rel="canonical"]')?.setAttribute('href', canonicalUrl)
+
+  let jsonLd = document.querySelector('#seo-json-ld')
+  if (!jsonLd) {
+    jsonLd = document.createElement('script')
+    jsonLd.id = 'seo-json-ld'
+    jsonLd.type = 'application/ld+json'
+    document.head.appendChild(jsonLd)
+  }
+  jsonLd.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': to.path.startsWith('/tools/') ? 'WebApplication' : 'WebPage',
+    name: seo?.heading || title,
+    url: canonicalUrl,
+    description: descriptionText,
+    inLanguage: 'zh-CN',
+    ...(to.path.startsWith('/tools/') ? {
+      applicationCategory: 'BusinessApplication', operatingSystem: 'Any',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'CNY' },
+    } : {}),
+  })
+}
 
 const routes = [
   { path: '/', name: 'Landing', component: () => import('../views/LandingPage.vue'), meta: { title: '链算 Pro · 物流商业计算工具', description: '物流报价、真实 IRR、工作日和单位换算等免费商业计算工具。' } },
@@ -51,7 +93,6 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const { isLoggedIn, isAdmin, isLoading } = useAuth()
   if (isLoading.value) return next()
-  const publicTools = new Set(['logistics-quote', 'irr', 'workdays', 'unit-converter'])
   if (to.name === 'Tool' && !publicTools.has(String(to.params.slug))) return next('/tools/logistics-quote')
   // 首页是智能入口：登录用户直接回工作台，访客进入免费体验页。
   if ((to.name === 'Landing' || to.name === 'Tool') && isLoggedIn.value) return next('/workspace')
@@ -64,11 +105,7 @@ router.beforeEach((to, from, next) => {
   // 未登录访问工作台、支付页或管理页，统一回免费体验页。
   if (to.meta.requiresAuth && !isLoggedIn.value) return next('/')
   if (to.meta.requiresAdmin && !isAdmin.value) return next('/workspace')
-  document.title = to.meta.title || '链算 Pro · 商业计算器'
-  const description = document.querySelector('meta[name="description"]')
-  if (description && to.meta.description) description.setAttribute('content', to.meta.description)
-  const robots = document.querySelector('meta[name="robots"]')
-  if (robots) robots.setAttribute('content', to.meta.robots || 'index,follow')
+  updateSeo(to)
   next()
 })
 
