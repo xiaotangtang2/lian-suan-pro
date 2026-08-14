@@ -33,7 +33,7 @@ function staticSeoPagesPlugin() {
       const pages = JSON.parse(readFileSync(resolve('seo-pages.json'), 'utf8'))
       const template = readFileSync(resolve('dist', 'index.html'), 'utf8')
       for (const page of pages) {
-        const url = `https://lian-suan-pro.pages.dev${page.path === '/' ? '/' : page.path}`
+        const url = `https://lian-suan-pro.pages.dev${page.path === '/' ? '/' : `${page.path}/`}`
         const structuredData = {
           '@context': 'https://schema.org',
           '@type': page.path.startsWith('/tools/') ? 'WebApplication' : 'WebPage',
@@ -61,12 +61,8 @@ function staticSeoPagesPlugin() {
         if (page.path === '/') {
           writeFileSync(resolve('dist', 'index.html'), html)
         } else {
-          // 同时生成 clean URL 对应的 .html 与目录索引，兼容 Cloudflare 和常规静态服务器。
-          const cleanOutput = resolve('dist', `${page.path.slice(1)}.html`)
           const directoryOutput = resolve('dist', page.path.slice(1), 'index.html')
-          mkdirSync(resolve(cleanOutput, '..'), { recursive: true })
           mkdirSync(resolve(directoryOutput, '..'), { recursive: true })
-          writeFileSync(cleanOutput, html)
           writeFileSync(directoryOutput, html)
         }
       }

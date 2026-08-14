@@ -9,7 +9,8 @@ function updateSeo(to) {
   const seo = seoPages.find(page => page.path === to.path)
   const title = seo?.title || to.meta.title || '链算 Pro · 商业计算器'
   const descriptionText = seo?.description || '链算 Pro 物流商业计算工具'
-  const canonicalUrl = `${siteOrigin}${seo?.path || to.path}`
+  const canonicalPath = seo?.path && seo.path !== '/' ? `${seo.path}/` : (seo?.path || to.path)
+  const canonicalUrl = `${siteOrigin}${canonicalPath}`
   document.title = title
   const setMeta = (selector, value) => document.querySelector(selector)?.setAttribute('content', value)
   setMeta('meta[name="description"]', descriptionText)

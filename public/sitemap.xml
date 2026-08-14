@@ -6,10 +6,10 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
-  <url><loc>https://lian-suan-pro.pages.dev/tools/logistics-quote</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://lian-suan-pro.pages.dev/tools/irr</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://lian-suan-pro.pages.dev/tools/workdays</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://lian-suan-pro.pages.dev/tools/unit-converter</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://lian-suan-pro.pages.dev/privacy</loc><lastmod>2026-08-14</lastmod><changefreq>monthly</changefreq><priority>0.4</priority></url>
-  <url><loc>https://lian-suan-pro.pages.dev/contact</loc><lastmod>2026-08-14</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://lian-suan-pro.pages.dev/tools/logistics-quote/</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://lian-suan-pro.pages.dev/tools/irr/</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://lian-suan-pro.pages.dev/tools/workdays/</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://lian-suan-pro.pages.dev/tools/unit-converter/</loc><lastmod>2026-08-14</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://lian-suan-pro.pages.dev/privacy/</loc><lastmod>2026-08-14</lastmod><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://lian-suan-pro.pages.dev/contact/</loc><lastmod>2026-08-14</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
 </urlset>
