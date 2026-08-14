@@ -188,7 +188,8 @@ async function onLogout() {
   white-space: nowrap;
 }
 .contact-link { color: var(--brand); text-decoration: none; font-weight: 600; }
-.brand-mark { width: 46px; height: 46px; padding: 0; border-radius: 11px; background: transparent; object-fit: contain; display: block; }
+.brand-mark { width: 46px; height: 46px; padding: 0; border: 0; border-radius: 0; background: transparent; object-fit: contain; display: block; box-shadow: none; }
+.brand:hover .brand-mark { box-shadow: none; }
 .module-motion-row { display: none; justify-content: flex-end; margin: -6px 0 14px; }
 .module-nav { perspective: 1000px; }
 .module-nav button { --nav-tilt-x: 0deg; --nav-tilt-y: 0deg; --nav-glow-x: 50%; --nav-glow-y: 50%; overflow: hidden; transform-style: preserve-3d; transform-origin: center; touch-action: pan-y; will-change: transform; }
