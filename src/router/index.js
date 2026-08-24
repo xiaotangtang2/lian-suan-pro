@@ -48,6 +48,7 @@ const routes = [
   { path: '/', name: 'Landing', component: () => import('../views/LandingPage.vue'), meta: { title: '链算 Pro · 物流商业计算工具', description: '物流报价、真实 IRR、工作日和单位换算等免费商业计算工具。' } },
   { path: '/tools/:slug', name: 'Tool', component: () => import('../views/ToolPage.vue'), meta: { title: '免费物流计算工具 · 链算 Pro' } },
   { path: '/privacy', name: 'Privacy', component: () => import('../views/PrivacyPage.vue'), meta: { title: '隐私与会员说明 · 链算 Pro' } },
+  { path: '/articles/logistics-cost-quote', name: 'LogisticsCostArticle', component: () => import('../views/LogisticsCostArticlePage.vue'), meta: { title: '物流成本报价计算器怎么用？ · 链算 Pro' } },
   {
     path: '/contact',
     name: 'Contact',
