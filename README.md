@@ -1,110 +1,68 @@
 # 链算 Pro
 
-基于 Vue 3、Vite 和 Element Plus 开发的物流商业计算网站。
+官网：[https://lian-suan-pro.pages.dev/](https://lian-suan-pro.pages.dev/)
 
-## 技术栈
+链算 Pro 是面向物流供应链从业者、小商户和个体经营者的商业计算工具。它把日常经营中容易算错、算慢、算不清的数字集中起来，让报价、成本、利润和资金成本更加清楚。
 
-- Vue 3
-- Vite
-- Vue Router
-- Element Plus
-- Supabase
-- SheetJS（Excel 导出）
+## 网站功能
 
-## 本地开发
+### 物流成本报价
 
-要求已安装 Node.js 18 或更高版本。
+综合计算进货成本、基础运费、包装费、损耗率、增值税率、体积重和目标利润率，生成建议对外报价、总成本、税费、毛利和毛利率。
 
-```powershell
-Set-Location "D:\CodexProjects\MyWeb"
-npm.cmd install
-npm.cmd run dev
-```
+[立即使用物流成本报价计算器 →](https://lian-suan-pro.pages.dev/tools/logistics-quote/)
 
-浏览器打开终端输出的本地地址，默认通常为 `http://localhost:5173`。
+### 真实 IRR 分期计算
 
-## 环境变量
+根据借款本金、每期还款金额和还款期数，计算月度 IRR、名义年利率和实际年化利率，帮助判断分期和融资的真实资金成本。
 
-在项目根目录创建 `.env`：
+[立即使用真实 IRR 计算器 →](https://lian-suan-pro.pages.dev/tools/irr/)
 
-```env
-VITE_SUPABASE_URL=https://你的项目.supabase.co
-VITE_SUPABASE_ANON_KEY=你的匿名公钥
-```
+### 工时与工作日计算
 
-前端只能使用 Supabase 匿名公钥。服务端密钥和 AI API Key 必须保存在 Supabase Function Secrets 中，不能写进前端源码或 `.env`。
+支持计算实际工作时长、午休扣除、加班时间和日期区间内的工作日数量，适合排班、工时统计和日常经营安排。
 
-## 构建
+[立即使用工时与工作日计算器 →](https://lian-suan-pro.pages.dev/tools/workdays/)
 
-```powershell
-npm.cmd run build
-```
+### 物流单位换算
 
-构建结果生成在 `dist/`。本地检查生产构建：
+支持重量、体积、CBM、材积等物流业务中常见单位的快速换算，减少人工换算带来的误差。
 
-```powershell
-npm.cmd run preview
-```
+[立即使用物流单位换算器 →](https://lian-suan-pro.pages.dev/tools/unit-converter/)
 
-## 部署
+### 批量计算与公式工具
 
-### Vercel
+支持批量处理数据、导出计算结果、保存常用公式模板，并提供 AI 辅助计算能力，帮助重复性的经营计算更快完成。
 
-项目已包含 `vercel.json`。导入代码仓库后设置以下环境变量：
+## 链算 Pro 的意义
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+很多经营决策并不是因为没有数据，而是因为成本没有算全、利润没有算准、资金成本没有看清。一笔报价如果漏掉运费、包装、损耗或税费，表面上有利润，实际可能每卖一单就亏一单。
 
-构建命令使用 `npm run build`，输出目录使用 `dist`。
+链算 Pro 希望把复杂的商业计算变成简单、直观、随时可以使用的小工具，让经营者在报价、采购、运输、融资和利润判断时，都能多一份依据，少一点“凭感觉”。
 
-### 静态服务器
+## 适合谁使用
 
-将 `dist/` 内的全部文件上传到网站根目录。由于项目使用 Vue Router History 模式，服务器需要将不存在的路径回退到 `index.html`。
+- 物流供应链从业者
+- 批发零售和电商经营者
+- 小商户和个体经营者
+- 需要核算运输成本的采购、销售和运营人员
+- 需要计算分期真实利率的企业和个人
+- 需要快速处理工时、工作日和物流单位换算的人
 
-## Supabase
+## 使用特点
 
-数据库初始化脚本：
+- 基础工具免费使用
+- 无需安装，打开网页即可使用
+- 手机和电脑都可以访问
+- 计算结果清晰直观，适合快速决策
+- 普通计算数据优先保存在当前浏览器
 
-- `supabase_schema.sql`
-- `supabase_membership.sql`
-- `supabase_username_login.sql`
+## 相关指南
 
-后续数据库变更位于 `supabase/migrations/`。其中付款凭证使用私有 Storage bucket，提交前会校验图片类型及 5MB 大小限制，管理员通过短时签名链接查看。
+[物流成本报价计算器怎么用？运费、损耗、税费与利润完整计算指南 →](https://lian-suan-pro.pages.dev/articles/logistics-cost-quote/)
 
-会员体系仅包含月度和年度两个付费周期，两者均为同一 PRO 等级且权益完全一致；年度价格提供约 18% 优惠。第一版不提供季度套餐。
+## 联系我们
 
-Edge Functions：
+如果你在使用过程中遇到问题，或有新的商业计算需求，欢迎通过网站的联系页面反馈。
 
-- `supabase/functions/ai-proxy`：AI 计算代理
-- `supabase/functions/send-contact`：联系表单
-- `supabase/functions/notify-admin`：会员订单通知
-
-部署 Edge Functions 后，在 Supabase 控制台配置其所需 Secrets。
-
-## 项目结构
-
-```text
-src/
-├─ components/   业务组件和计算器模块
-├─ config/       前端配置
-├─ lib/          Supabase 与计算逻辑
-├─ router/       页面路由
-├─ stores/       登录状态和主题状态
-├─ utils/        通用工具
-├─ views/        页面组件
-├─ App.vue       应用框架
-└─ main.js       应用入口
-
-supabase/
-└─ functions/    Supabase Edge Functions
-
-public/          静态资源
-```
-
-## 常用命令
-
-```text
-npm run dev       启动开发服务器
-npm run build     生成生产版本
-npm run preview   预览生产版本
-```
+[联系链算 Pro →](https://lian-suan-pro.pages.dev/contact/)
