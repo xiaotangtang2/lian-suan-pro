@@ -1,5 +1,12 @@
 # 链算 Pro
 
+> 官网：[https://lian-suan-pro.pages.dev/](https://lian-suan-pro.pages.dev/)
+
+物流供应链与小商户的商业计算工具：
+[物流成本报价计算器](https://lian-suan-pro.pages.dev/tools/logistics-quote/)、
+[真实 IRR 计算器](https://lian-suan-pro.pages.dev/tools/irr/)、
+[工时与工作日计算器](https://lian-suan-pro.pages.dev/tools/workdays/)
+
 基于 Vue 3、Vite 和 Element Plus 开发的物流商业计算网站。
 
 ## 技术栈
