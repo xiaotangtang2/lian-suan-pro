@@ -1,14 +1,16 @@
 ﻿<script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Refresh, Check, View, Close } from '@element-plus/icons-vue'
+import { ArrowLeft, Refresh, Check, View, Close, UserFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
 import { trackEvent } from '../utils/analytics.js'
+import { useOnlinePresence } from '../composables/useOnlinePresence.js'
 
 const router = useRouter()
 const { state, isAdmin, refreshMembership } = useAuth()
+const { onlineCount, isConnected, connectionStatus } = useOnlinePresence()
 
 const orders = ref([])
 const loading = ref(false)
@@ -107,7 +109,14 @@ onBeforeUnmount(() => {
           <h1>会员订单管理</h1>
           <p>确认收款后，客户页面会自动解锁并显示 PRO 会员标记。</p>
         </div>
-        <el-button :icon="Refresh" :loading="loading" @click="loadOrders">刷新</el-button>
+        <div class="admin-actions">
+          <div class="online-stat" :class="{ 'is-offline': !isConnected }" :title="isConnected ? '按正在连接的网站标签页统计' : '实时通道连接中或暂不可用'">
+            <el-icon><UserFilled /></el-icon>
+            <span><b>{{ onlineCount }}</b> 人在线</span>
+            <i class="online-dot" aria-hidden="true"></i>
+          </div>
+          <el-button :icon="Refresh" :loading="loading" @click="loadOrders">刷新</el-button>
+        </div>
       </div>
 
       <el-alert
@@ -190,6 +199,17 @@ onBeforeUnmount(() => {
 }
 .admin-head h1 { font-size: 28px; margin: 0 0 6px; }
 .admin-head p { color: var(--muted); font-size: 14px; margin: 0; }
+.admin-actions { display: flex; align-items: center; gap: 10px; }
+.online-stat {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 32px;
+  padding: 0 11px; border: 1px solid color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-radius: 9px; color: var(--brand); background: color-mix(in srgb, var(--brand) 7%, var(--card));
+  font-size: 13px; white-space: nowrap;
+}
+.online-stat b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.online-dot { width: 7px; height: 7px; border-radius: 50%; background: #22a06b; box-shadow: 0 0 0 3px rgb(34 160 107 / 14%); }
+.online-stat.is-offline { color: var(--muted); background: var(--card); }
+.online-stat.is-offline .online-dot { background: #9aa4b5; box-shadow: none; }
 
 .admin-table { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
 .order-filters{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:var(--muted);font-size:13px}
@@ -198,5 +218,6 @@ onBeforeUnmount(() => {
 @media (max-width: 600px) {
   .admin-main { padding: 24px 12px 48px; }
   .admin-head { flex-direction: column; align-items: stretch; }
+  .admin-actions { justify-content: space-between; }
 }
 </style>
