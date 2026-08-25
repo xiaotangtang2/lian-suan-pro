@@ -14,6 +14,8 @@ const { onlineCount, isConnected, connectionStatus } = useOnlinePresence()
 
 const orders = ref([])
 const loading = ref(false)
+const visitorLoading = ref(false)
+const todayVisitors = ref({ account_visitors: 0, anonymous_visitors: 0, total_visitors: 0 })
 const statusFilter = ref('pending')
 const filteredOrders = computed(() => statusFilter.value === 'all' ? orders.value : orders.value.filter(order => order.status === statusFilter.value))
 let timer = null
@@ -64,6 +66,27 @@ async function loadOrders() {
   }
 }
 
+/** 后台 RPC 已在数据库内按账号/匿名访客去重，避免把明细数据全拉到浏览器。 */
+async function loadTodayVisitors() {
+  if (!isAdmin.value) return
+  visitorLoading.value = true
+  try {
+    const { data, error } = await supabase.rpc('get_today_visitor_stats')
+    if (error) throw error
+    todayVisitors.value = Array.isArray(data) ? (data[0] || todayVisitors.value) : (data || todayVisitors.value)
+  } catch (error) {
+    // 迁移尚未执行或网络暂时不可用时，不影响订单管理。
+    console.warn('读取今日访客统计失败', error.message)
+  } finally {
+    visitorLoading.value = false
+  }
+}
+
+function refreshDashboard() {
+  loadOrders()
+  loadTodayVisitors()
+}
+
 async function confirmOrder(order) {
   try {
     await ElMessageBox.confirm(
@@ -86,8 +109,8 @@ async function confirmOrder(order) {
 
 onMounted(async () => {
   await refreshMembership()
-  loadOrders()
-  timer = setInterval(loadOrders, 15000)
+  refreshDashboard()
+  timer = setInterval(refreshDashboard, 15000)
 })
 
 onBeforeUnmount(() => {
@@ -115,7 +138,11 @@ onBeforeUnmount(() => {
             <span><b>{{ onlineCount }}</b> 人在线</span>
             <i class="online-dot" aria-hidden="true"></i>
           </div>
-          <el-button :icon="Refresh" :loading="loading" @click="loadOrders">刷新</el-button>
+          <div class="visitor-stat" title="按中国时区统计；同一账号当天只计一次，未登录访客按浏览器去重">
+            <span>今日到访 <b>{{ todayVisitors.total_visitors }}</b></span>
+            <small>账号 {{ todayVisitors.account_visitors }} · 访客 {{ todayVisitors.anonymous_visitors }}</small>
+          </div>
+          <el-button :icon="Refresh" :loading="loading || visitorLoading" @click="refreshDashboard">刷新</el-button>
         </div>
       </div>
 
@@ -210,6 +237,9 @@ onBeforeUnmount(() => {
 .online-dot { width: 7px; height: 7px; border-radius: 50%; background: #22a06b; box-shadow: 0 0 0 3px rgb(34 160 107 / 14%); }
 .online-stat.is-offline { color: var(--muted); background: var(--card); }
 .online-stat.is-offline .online-dot { background: #9aa4b5; box-shadow: none; }
+.visitor-stat { display: flex; flex-direction: column; gap: 1px; padding: 4px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--card); color: var(--text); font-size: 13px; white-space: nowrap; }
+.visitor-stat b { color: var(--brand); font-size: 16px; font-variant-numeric: tabular-nums; }
+.visitor-stat small { color: var(--muted); font-size: 11px; }
 
 .admin-table { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
 .order-filters{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:var(--muted);font-size:13px}
@@ -218,6 +248,6 @@ onBeforeUnmount(() => {
 @media (max-width: 600px) {
   .admin-main { padding: 24px 12px 48px; }
   .admin-head { flex-direction: column; align-items: stretch; }
-  .admin-actions { justify-content: space-between; }
+  .admin-actions { justify-content: space-between; flex-wrap: wrap; }
 }
 </style>
