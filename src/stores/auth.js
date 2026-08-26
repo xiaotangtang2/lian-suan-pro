@@ -10,7 +10,6 @@ function buildCurrentUser(user, profile) {
   return {
     id: user.id,
     email: user.email ?? null,
-    phone: user.phone ?? null,
     username: profile?.username ?? null,
     is_member: profile?.is_member ?? false,
     is_admin: profile?.is_admin ?? false,
@@ -115,97 +114,12 @@ export function useAuth() {
     }
   }
 
-  /** 自定义账号名 + 密码登录 */
-  async function loginWithAccount(account, password) {
-    const value = (account || '').trim()
-    try {
-      if (!value || !password) return { ok: false, error: '请填写账号和密码' }
-      // 输入的是邮箱就按邮箱登录，否则先用账号名找邮箱
-      if (value.includes('@')) return login(value, password)
-      let email = null
-      try {
-        const { data, error } = await supabase.rpc('find_login_email', { p_account: value })
-        if (error) return { ok: false, error: '账号登录还未初始化，请先在 Supabase 执行数据库脚本' }
-        email = data
-      } catch {
-        return { ok: false, error: '账号登录还未初始化，请先在 Supabase 执行数据库脚本' }
-      }
-      if (!email) return { ok: false, error: '该账号未注册，请先注册' }
-      return login(email, password)
-    } catch {
-      return { ok: false, error: '网络异常，请稍后重试' }
-    }
-  }
-
-  /** 发送手机验证码 */
-  async function sendPhoneOtp(phone) {
-    try {
-      const { error } = await supabase.auth.signInWithOtp({ phone })
-      if (error) {
-        const msg = error.message.toLowerCase().includes('rate limit')
-          ? '验证码发送太频繁，请稍后再试'
-          : error.message.toLowerCase().includes('unsupported phone provider')
-            ? '手机号登录还没在后台开启，请先在 Supabase 配置短信服务'
-            : error.message
-        return { ok: false, error: msg }
-      }
-      return { ok: true }
-    } catch {
-      return { ok: false, error: '网络异常，请稍后重试' }
-    }
-  }
-
-  /** 手机号 + 验证码登录 */
-  async function loginWithPhone(phone, token) {
-    try {
-      const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' })
-      if (error) return { ok: false, error: '验证码错误或已过期：' + error.message }
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (userError || !user) {
-        return { ok: false, error: '登录成功但获取用户信息失败，请刷新重试' }
-      }
-      const profile = await fetchProfile(user.id)
-      state.currentUser = buildCurrentUser(user, profile)
-      return { ok: true }
-    } catch {
-      return { ok: false, error: '网络异常，请稍后重试' }
-    }
-  }
-
-  /** OAuth 第三方登录 */
-  async function loginWithOAuth(provider) {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: window.location.origin },
-      })
-      if (error) return { ok: false, error: error.message }
-      return { ok: true }
-    } catch {
-      return { ok: false, error: '网络异常，请稍后重试' }
-    }
-  }
-
   /** 注册 */
-  async function register(email, password, username = '') {
-    const uname = (username || '').trim()
+  async function register(email, password) {
     try {
-      if (uname) {
-        try {
-          const { data: taken, error: takenError } = await supabase.rpc('username_taken', { p_username: uname })
-          if (takenError) {
-            return { ok: false, error: '自定义账号功能未初始化，请先在 Supabase 执行数据库脚本' }
-          }
-          if (taken) return { ok: false, error: '该账号名已被使用，请换一个' }
-        } catch {
-          return { ok: false, error: '自定义账号功能未初始化，请先在 Supabase 执行数据库脚本' }
-        }
-      }
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: uname ? { data: { username: uname } } : undefined,
       })
       if (error) {
         const msg = error.message.includes('already')
@@ -240,14 +154,13 @@ export function useAuth() {
         const { error: profileError } = await supabase.from('profiles').insert({
           id: data.user.id,
           email,
-          username: uname || null,
           is_member: false,
         })
         if (profileError) {
           profile = await fetchProfile(data.user.id)
           if (!profile) return { ok: false, error: '账号创建失败：' + profileError.message }
         } else {
-          profile = { id: data.user.id, email, username: uname || null, is_member: false, is_admin: false, member_expires_at: null }
+          profile = { id: data.user.id, email, username: null, is_member: false, is_admin: false, member_expires_at: null }
         }
       }
 
@@ -287,10 +200,6 @@ export function useAuth() {
     restoreSession,
     refreshMembership,
     login,
-    loginWithAccount,
-    sendPhoneOtp,
-    loginWithPhone,
-    loginWithOAuth,
     register,
     logout,
   }

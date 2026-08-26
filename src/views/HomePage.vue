@@ -128,7 +128,7 @@ async function onLogout() {
     <header class="topbar">
       <div class="brand"><img class="brand-mark" src="/favicon.png" alt="链算 Pro"/><div><strong>链算 Pro</strong><span>物流商业计算工作台</span></div></div>
       <div class="header-actions">
-        <span class="user-email">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span>
+        <span class="user-email">{{ state.currentUser?.email || '已登录用户' }}</span>
         <el-tag v-if="isMember" type="warning" effect="plain">PRO 会员</el-tag>
         <el-button v-else type="primary" size="small" @click="router.push('/upgrade')">升级会员</el-button>
         <el-tooltip content="切换明暗主题" placement="bottom">

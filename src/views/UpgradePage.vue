@@ -146,7 +146,7 @@ onBeforeUnmount(() => {
   <div class="upgrade-page">
     <header class="up-topbar">
       <el-button :icon="ArrowLeft" text @click="router.push(state.currentUser ? '/workspace' : '/')">返回工作台</el-button>
-<span class="up-user">{{ state.currentUser?.email || state.currentUser?.phone || '未登录' }}</span><el-tag v-if="isMember" type="warning" effect="plain" style="margin-left:8px">PRO 会员</el-tag>
+<span class="up-user">{{ state.currentUser?.email || '未登录' }}</span><el-tag v-if="isMember" type="warning" effect="plain" style="margin-left:8px">PRO 会员</el-tag>
     </header>
 
     <section class="up-hero">

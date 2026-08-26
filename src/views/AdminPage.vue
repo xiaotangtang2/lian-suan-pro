@@ -122,7 +122,7 @@ onBeforeUnmount(() => {
   <div class="admin-page">
     <header class="admin-topbar">
       <el-button :icon="ArrowLeft" text @click="router.push('/workspace')">返回工作台</el-button>
-      <span class="admin-user">{{ state.currentUser?.email || state.currentUser?.phone || '已登录用户' }}</span>
+      <span class="admin-user">{{ state.currentUser?.email || '已登录用户' }}</span>
     </header>
 
     <main class="admin-main">
