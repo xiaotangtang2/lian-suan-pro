@@ -16,6 +16,12 @@ const orders = ref([])
 const loading = ref(false)
 const visitorLoading = ref(false)
 const todayVisitors = ref({ account_visitors: 0, anonymous_visitors: 0, total_visitors: 0 })
+const aiLoading = ref(false)
+const aiSaving = ref(false)
+const aiLimitDirty = ref(false)
+const aiStats = ref({ call_count: 0, estimated_tokens: 0, failed_count: 0 })
+const aiSettings = ref({ daily_limit: 20, input_char_limit: 2000, output_token_limit: 700 })
+const dailyAiLimit = ref(20)
 const statusFilter = ref('pending')
 const filteredOrders = computed(() => statusFilter.value === 'all' ? orders.value : orders.value.filter(order => order.status === statusFilter.value))
 let timer = null
@@ -82,9 +88,57 @@ async function loadTodayVisitors() {
   }
 }
 
+/** AI 用量由数据库聚合，只向管理员返回总数，不暴露用户的问题文本。 */
+async function loadAiDashboard() {
+  if (!isAdmin.value) return
+  aiLoading.value = true
+  try {
+    const [statsResult, settingsResult] = await Promise.all([
+      supabase.rpc('get_today_ai_stats'),
+      supabase.rpc('get_ai_control_settings'),
+    ])
+    if (statsResult.error) throw statsResult.error
+    if (settingsResult.error) throw settingsResult.error
+    const stats = Array.isArray(statsResult.data) ? statsResult.data[0] : statsResult.data
+    const settings = Array.isArray(settingsResult.data) ? settingsResult.data[0] : settingsResult.data
+    if (stats) aiStats.value = stats
+    if (settings) {
+      aiSettings.value = settings
+      // 管理员正在编辑时，不用定时刷新把输入框中的数值覆盖掉。
+      if (!aiLimitDirty.value) dailyAiLimit.value = settings.daily_limit
+    }
+  } catch (error) {
+    console.warn('读取 AI 用量统计失败', error.message)
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+async function saveDailyAiLimit() {
+  const limit = Number(dailyAiLimit.value)
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+    ElMessage.warning('每日 AI 调用次数必须是 1 到 1000 的整数')
+    return
+  }
+  aiSaving.value = true
+  try {
+    const { data, error } = await supabase.rpc('update_ai_daily_limit', { p_daily_limit: limit })
+    if (error) throw error
+    dailyAiLimit.value = data
+    aiSettings.value = { ...aiSettings.value, daily_limit: data }
+    aiLimitDirty.value = false
+    ElMessage.success(`每日 AI 调用上限已设为 ${data} 次`)
+  } catch (error) {
+    ElMessage.error('保存 AI 调用上限失败：' + (error.message || '网络错误'))
+  } finally {
+    aiSaving.value = false
+  }
+}
+
 function refreshDashboard() {
   loadOrders()
   loadTodayVisitors()
+  loadAiDashboard()
 }
 
 async function confirmOrder(order) {
@@ -154,7 +208,30 @@ onBeforeUnmount(() => {
         show-icon
       />
 
-      <div v-else class="admin-table">
+      <div v-else>
+        <section class="ai-admin-panel" v-loading="aiLoading">
+          <div class="ai-panel-head">
+            <div>
+              <p class="admin-kicker">AI COST CONTROL</p>
+              <h2>AI 用量与额度</h2>
+              <p>统计不保存用户输入内容；Token 为模型返回值或字符量预估值。</p>
+            </div>
+            <div class="ai-limit-setting">
+              <span>每账号每日上限</span>
+              <el-input-number v-model="dailyAiLimit" :min="1" :max="1000" :step="1" controls-position="right" @update:model-value="aiLimitDirty = true" />
+              <span>次</span>
+              <el-button type="primary" :loading="aiSaving" @click="saveDailyAiLimit">保存</el-button>
+            </div>
+          </div>
+          <div class="ai-metrics">
+            <div class="ai-metric"><span>今日调用量</span><b>{{ aiStats.call_count }}</b><small>次</small></div>
+            <div class="ai-metric"><span>预估 / 实际 Token</span><b>{{ Number(aiStats.estimated_tokens).toLocaleString() }}</b><small>Token</small></div>
+            <div class="ai-metric"><span>失败次数</span><b :class="{ 'metric-danger': Number(aiStats.failed_count) > 0 }">{{ aiStats.failed_count }}</b><small>次</small></div>
+            <div class="ai-metric ai-rule"><span>固定保护</span><b>{{ aiSettings.input_char_limit }} 字 / {{ aiSettings.output_token_limit }} Token</b><small>单次输入 / 输出</small></div>
+          </div>
+        </section>
+
+        <div class="admin-table">
         <div class="order-filters"><el-radio-group v-model="statusFilter"><el-radio-button label="pending">待审核</el-radio-button><el-radio-button label="paid">已通过</el-radio-button><el-radio-button label="rejected">已驳回</el-radio-button><el-radio-button label="all">全部</el-radio-button></el-radio-group><span>共 {{ filteredOrders.length }} 笔</span></div>
         <el-table :data="filteredOrders" v-loading="loading" stripe empty-text="暂时没有订单">
           <el-table-column prop="created_at" label="提交时间" min-width="170">
@@ -194,6 +271,7 @@ onBeforeUnmount(() => {
             </template>
           </el-table-column>
         </el-table>
+        </div>
       </div>
     </main>
   </div>
@@ -241,6 +319,18 @@ onBeforeUnmount(() => {
 .visitor-stat b { color: var(--brand); font-size: 16px; font-variant-numeric: tabular-nums; }
 .visitor-stat small { color: var(--muted); font-size: 11px; }
 
+.ai-admin-panel { margin-bottom: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.ai-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.ai-panel-head h2 { margin: 0 0 5px; font-size: 18px; }
+.ai-panel-head p { margin: 0; color: var(--muted); font-size: 12px; }
+.ai-limit-setting { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.ai-limit-setting :deep(.el-input-number) { width: 112px; }
+.ai-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+.ai-metric { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 13px; border-radius: 10px; background: color-mix(in srgb, var(--brand-soft) 52%, var(--card)); }
+.ai-metric span, .ai-metric small { color: var(--muted); font-size: 12px; }
+.ai-metric b { color: var(--brand); font-size: 21px; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ai-metric .metric-danger { color: #d94b4b; }
+.ai-metric.ai-rule b { font-size: 15px; }
 .admin-table { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
 .order-filters{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:var(--muted);font-size:13px}
 .done-text { color: var(--muted); font-size: 13px; }
@@ -249,5 +339,7 @@ onBeforeUnmount(() => {
   .admin-main { padding: 24px 12px 48px; }
   .admin-head { flex-direction: column; align-items: stretch; }
   .admin-actions { justify-content: space-between; flex-wrap: wrap; }
+  .ai-panel-head { flex-direction: column; }
+  .ai-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

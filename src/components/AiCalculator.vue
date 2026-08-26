@@ -11,6 +11,7 @@ const router = useRouter()
 const text = ref('')
 const result = ref('')
 const loading = ref(false)
+const maxInputChars = 2000
 const placeholderExamples = [
   '运费320元，税率6%，包装费18元，利润16%，求最终报价',
   '1000箱货，每箱15kg，运费每公斤8元，求总运费',
@@ -25,6 +26,10 @@ async function calculate() {
       cancelButtonText: '取消',
       type: 'warning',
     }).then(() => router.push('/upgrade')).catch(() => {})
+    return
+  }
+  if (Array.from(text.value.trim()).length > maxInputChars) {
+    ElMessage.warning(`单次输入最多 ${maxInputChars} 个字符，请精简后再计算`)
     return
   }
   loading.value = true
@@ -72,8 +77,11 @@ function useExample(i) { text.value = placeholderExamples[i] }
         v-model="text"
         type="textarea"
         :rows="4"
+        :maxlength="maxInputChars"
+        show-word-limit
         placeholder="例如：运费320元，税率6%，包装费18元，利润16%，求最终报价"
       />
+      <small class="ai-limit-note">单次最多 {{ maxInputChars }} 个字符；每日调用额度由管理员设置。</small>
 
       <div class="ai-examples">
         <span class="ai-examples-label">试试这些：</span>
@@ -119,6 +127,7 @@ function useExample(i) { text.value = placeholderExamples[i] }
   font-size: 12px;
   color: var(--muted);
 }
+.ai-limit-note { color: var(--muted); font-size: 12px; margin-top: -8px; }
 .ai-example-tag {
   cursor: pointer;
   transition: all .2s;
