@@ -6,4 +6,4 @@ Disallow: /upgrade
 Disallow: /admin
 Disallow: /workspace
 
-Sitemap: https://lian-suan-pro.pages.dev/sitemap.xml
+Sitemap: https://liansuanpro.cn/sitemap.xml
