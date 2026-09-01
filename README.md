@@ -1,6 +1,6 @@
 # 链算 Pro
 
-官网：[https://lian-suan-pro.pages.dev/](https://lian-suan-pro.pages.dev/)
+官网：[https://liansuanpro.cn/](https://liansuanpro.cn/)
 
 链算 Pro 是面向物流供应链从业者、小商户和个体经营者的商业计算工具。它把日常经营中容易算错、算慢、算不清的数字集中起来，让报价、成本、利润和资金成本更加清楚。
 
@@ -10,25 +10,25 @@
 
 综合计算进货成本、基础运费、包装费、损耗率、增值税率、体积重和目标利润率，生成建议对外报价、总成本、税费、毛利和毛利率。
 
-[立即使用物流成本报价计算器 →](https://lian-suan-pro.pages.dev/tools/logistics-quote/)
+[立即使用物流成本报价计算器 →](https://liansuanpro.cn/tools/logistics-quote/)
 
 ### 真实 IRR 分期计算
 
 根据借款本金、每期还款金额和还款期数，计算月度 IRR、名义年利率和实际年化利率，帮助判断分期和融资的真实资金成本。
 
-[立即使用真实 IRR 计算器 →](https://lian-suan-pro.pages.dev/tools/irr/)
+[立即使用真实 IRR 计算器 →](https://liansuanpro.cn/tools/irr/)
 
 ### 工时与工作日计算
 
 支持计算实际工作时长、午休扣除、加班时间和日期区间内的工作日数量，适合排班、工时统计和日常经营安排。
 
-[立即使用工时与工作日计算器 →](https://lian-suan-pro.pages.dev/tools/workdays/)
+[立即使用工时与工作日计算器 →](https://liansuanpro.cn/tools/workdays/)
 
 ### 物流单位换算
 
 支持重量、体积、CBM、材积等物流业务中常见单位的快速换算，减少人工换算带来的误差。
 
-[立即使用物流单位换算器 →](https://lian-suan-pro.pages.dev/tools/unit-converter/)
+[立即使用物流单位换算器 →](https://liansuanpro.cn/tools/unit-converter/)
 
 ### 批量计算与公式工具
 
@@ -59,10 +59,10 @@
 
 ## 相关指南
 
-[物流成本报价计算器怎么用？运费、损耗、税费与利润完整计算指南 →](https://lian-suan-pro.pages.dev/articles/logistics-cost-quote/)
+[物流成本报价计算器怎么用？运费、损耗、税费与利润完整计算指南 →](https://liansuanpro.cn/articles/logistics-cost-quote/)
 
 ## 联系我们
 
 如果你在使用过程中遇到问题，或有新的商业计算需求，欢迎通过网站的联系页面反馈。
 
-[联系链算 Pro →](https://lian-suan-pro.pages.dev/contact/)
+[联系链算 Pro →](https://liansuanpro.cn/contact/)

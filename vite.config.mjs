@@ -33,7 +33,7 @@ function staticSeoPagesPlugin() {
       const pages = JSON.parse(readFileSync(resolve('seo-pages.json'), 'utf8'))
       const template = readFileSync(resolve('dist', 'index.html'), 'utf8')
       for (const page of pages) {
-        const url = `https://lian-suan-pro.pages.dev${page.path === '/' ? '/' : `${page.path}/`}`
+        const url = `https://liansuanpro.cn${page.path === '/' ? '/' : `${page.path}/`}`
         const structuredData = {
           '@context': 'https://schema.org',
           '@type': page.path.startsWith('/tools/') ? 'WebApplication' : 'WebPage',

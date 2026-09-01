@@ -13,11 +13,11 @@ async function bootstrap() {
   const auth = useAuth()
 
   // 邮箱确认或其他标签页登录成功后，自动同步当前账号
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session) {
-      auth.restoreSession()
+      await auth.restoreSession()
       // 当访客在当天登录后，以账号身份补记一次；后台会自动消除其匿名重复计数。
-      trackDailyVisit()
+      trackDailyVisit({ isAdmin: auth.isAdmin.value })
     } else if (event === 'SIGNED_OUT') {
       auth.state.currentUser = null
     }
@@ -25,7 +25,7 @@ async function bootstrap() {
 
   // 先恢复会话再挂载路由，未登录时由守卫直接跳登录页，避免首屏闪现首页
   await auth.restoreSession()
-  trackDailyVisit()
+  trackDailyVisit({ isAdmin: auth.isAdmin.value })
 
   const app = createApp(App)
   app.use(ElementPlus)

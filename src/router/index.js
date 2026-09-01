@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '../stores/auth.js'
 import seoPages from '../../seo-pages.json'
 
-const siteOrigin = 'https://lian-suan-pro.pages.dev'
+const siteOrigin = 'https://liansuanpro.cn'
 const publicTools = new Set(['logistics-quote', 'irr', 'workdays', 'unit-converter'])
 
 function updateSeo(to) {

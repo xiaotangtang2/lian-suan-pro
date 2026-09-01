@@ -35,7 +35,10 @@ export async function trackEvent(eventName, properties = {}) {
  * 每个账号或匿名浏览器每天只写一条“到访”记录。
  * 用户当天先匿名浏览、后登录时会补写账号记录；后台会排除该匿名记录，避免重复统计。
  */
-export async function trackDailyVisit() {
+export async function trackDailyVisit({ isAdmin = false } = {}) {
+  // 管理员浏览、刷新或误切到访客页面都不属于真实访客。
+  if (isAdmin) return
+
   try {
     const { data: { user } } = await supabase.auth.getUser()
     const identity = user?.id ? `account-${user.id}` : `guest-${visitorId()}`
