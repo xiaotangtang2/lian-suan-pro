@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Check, CopyDocument, UploadFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, Check } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
@@ -24,18 +24,19 @@ const memberExpiryText = computed(() => {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? '有效期未知' : date.toLocaleString('zh-CN', { hour12: false })
 })
-const auditHint = computed(() => pendingOrder.value ? `已于 ${new Date(pendingOrder.value.created_at).toLocaleString('zh-CN', { hour12: false })} 提交，通常会在工作日 24 小时内核验。` : '凭证请清晰包含付款金额、付款时间、收款方和订单号；通常会在工作日 24 小时内核验。')
+const auditHint = computed(() => pendingOrder.value
+  ? `已于 ${new Date(pendingOrder.value.created_at).toLocaleString('zh-CN', { hour12: false })} 提交，管理员会在工作日 2 小时内核验到账。`
+  : '完成支付后提交开通申请，无需上传订单截图或填写订单号；管理员会在工作日 2 小时内核验到账。')
 
 const qrTab = ref('wechat')
 const qrLoaded = ref(false)
 watch(qrTab, () => { qrLoaded.value = false })
-const orderNo = ref('LC' + Date.now().toString(36).toUpperCase())
+// 订单号仅用于系统内部去重与管理员核对，不再要求用户查看、备注或填写。
+const internalOrderNo = () => `LC${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 
 const pendingOrder = ref(null)
 const latestRejectedOrder = ref(null)
 const submitting = ref(false)
-const proofFile = ref(null)
-const proofPreview = ref('')
 let statusTimer = null
 
 async function loadMyOrders() {
@@ -50,64 +51,32 @@ async function loadMyOrders() {
   latestRejectedOrder.value = (data || []).find(o => o.status === 'rejected') || null
 }
 
-function selectProof(file) {
-  const raw = file.raw
-  const allowed = ['image/jpeg', 'image/png', 'image/webp']
-  if (!allowed.includes(raw?.type)) { ElMessage.error('仅支持 JPG、PNG 或 WebP 图片'); return false }
-  if (raw.size > 5 * 1024 * 1024) { ElMessage.error('付款凭证不能超过 5MB'); return false }
-  if (proofPreview.value) URL.revokeObjectURL(proofPreview.value)
-  proofFile.value = raw
-  proofPreview.value = URL.createObjectURL(raw)
-  return false
-}
-
-async function uploadProof() {
-  const extension = proofFile.value.name.split('.').pop()?.toLowerCase() || 'jpg'
-  const path = `${state.currentUser.id}/${orderNo.value}.${extension}`
-  const { error } = await supabase.storage.from('payment-proofs').upload(path, proofFile.value, {
-    cacheControl: '3600', upsert: false, contentType: proofFile.value.type,
-  })
-  if (error) throw error
-  return path
-}
-
-function copyOrderId() {
-  navigator.clipboard.writeText(orderNo.value)
-  ElMessage.success('订单号已复制')
-}
-
 async function submitPayment() {
-  if (!state.currentUser?.id) { ElMessage.warning('请先登录后提交付款凭证'); router.push({ path: '/login', query: { entry: 'landing' } }); return }
+  if (!state.currentUser?.id) { ElMessage.warning('请先登录后提交开通申请'); router.push({ path: '/login', query: { entry: 'landing' } }); return }
   if (pendingOrder.value) { ElMessage.warning('已有待开通订单，请等待管理员确认'); return }
-  if (!proofFile.value) { ElMessage.warning('请先上传付款凭证'); return }
   submitting.value = true
-  let uploadedPath = ''
   try {
-    uploadedPath = await uploadProof()
     const { data, error } = await supabase
       .from('membership_orders')
       .insert({
         user_id: state.currentUser.id,
         email: state.currentUser.email,
-        order_no: orderNo.value,
+        order_no: internalOrderNo(),
         plan_id: activePlan.value.id,
         plan_name: activePlan.value.name,
         amount: activePlan.value.amount,
         pay_method: qrTab.value,
         status: 'pending',
-        proof_path: uploadedPath,
-        proof_uploaded_at: new Date().toISOString(),
       })
       .select()
       .single()
     if (error) throw error
     pendingOrder.value = data
     latestRejectedOrder.value = null
-    trackEvent('payment_proof_submitted', { plan: activePlan.value.id, pay_method: qrTab.value })
+    trackEvent('payment_application_submitted', { plan: activePlan.value.id, pay_method: qrTab.value })
     notifyAdmin(data)
-    ElMessage.success('开通申请已提交，管理员确认后会自动解锁')
+    ElMessage.success('开通申请已提交，管理员核对到账后会自动开通')
   } catch (e) {
-    if (uploadedPath) await supabase.storage.from('payment-proofs').remove([uploadedPath])
     ElMessage.error('提交失败：' + (e.message || '请稍后重试'))
   } finally {
     submitting.value = false
@@ -138,7 +107,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', refreshMembership)
   document.removeEventListener('visibilitychange', onStatusVisible)
   if (statusTimer) clearInterval(statusTimer)
-  if (proofPreview.value) URL.revokeObjectURL(proofPreview.value)
 })
 </script>
 
@@ -207,34 +175,23 @@ onBeforeUnmount(() => {
             <span>应付金额</span>
             <strong>{{ activePlan.price }}</strong>
           </div>
-          <div class="pay-order">
-            <span>订单号</span>
-            <code>{{ orderNo }}</code>
-            <el-button :icon="CopyDocument" text size="small" @click="copyOrderId">复制</el-button>
-          </div>
           <el-divider />
           <p class="pay-note">
-            付款时请在<strong>备注里填写订单号</strong>，再上传付款截图。管理员核对真实到账后才会开通。
+            完成扫码支付后，点击下方按钮提交开通申请。无需订单截图和订单号，管理员核对真实到账后才会开通。
           </p>
           <el-alert v-if="latestRejectedOrder && !pendingOrder" :title="'上次申请已驳回：' + (latestRejectedOrder.rejection_reason || '凭证或到账信息不符')" type="error" :closable="false" show-icon style="margin-top:16px" />
-          <el-alert v-if="pendingOrder" :title="'订单 ' + pendingOrder.order_no + ' 已提交，等待管理员确认收款'" :description="auditHint" type="info" :closable="false" show-icon style="margin-top:16px" />
-          <el-alert v-if="!state.currentUser" title="请先登录，再上传并提交付款凭证" type="info" :closable="false" show-icon style="margin-top:16px" />
-          <div v-if="state.currentUser && !pendingOrder" class="proof-upload">
-            <el-upload :auto-upload="false" :show-file-list="false" accept="image/jpeg,image/png,image/webp" :on-change="selectProof">
-              <el-button :icon="UploadFilled">{{ proofFile ? '重新选择凭证' : '上传付款凭证' }}</el-button>
-            </el-upload>
-            <img v-if="proofPreview" :src="proofPreview" alt="付款凭证预览" class="proof-preview" />
-            <small>{{ auditHint }} 支持 JPG、PNG、WebP，最大 5MB；凭证仅本人和管理员可查看。</small>
-          </div>
-          <el-button type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder || (!!state.currentUser && !proofFile)" @click="submitPayment">
-            {{ !state.currentUser ? "登录后提交付款凭证" : pendingOrder ? "申请已提交，等待确认" : proofFile ? (isMember ? "提交凭证，续费会员" : "提交凭证，申请开通") : "请先上传付款凭证" }}
+          <el-alert v-if="pendingOrder" title="开通申请已提交，等待管理员确认收款" :description="auditHint" type="info" :closable="false" show-icon style="margin-top:16px" />
+          <el-alert v-if="!state.currentUser" title="请先登录，再提交开通申请" type="info" :closable="false" show-icon style="margin-top:16px" />
+          <p v-if="state.currentUser && !pendingOrder" class="audit-hint">{{ auditHint }}</p>
+          <el-button type="primary" size="large" style="width:100%;margin-top:16px" :loading="submitting" :disabled="!!pendingOrder" @click="submitPayment">
+            {{ !state.currentUser ? "登录后提交开通申请" : pendingOrder ? "申请已提交，等待确认" : (isMember ? "提交续费申请" : "我已完成支付，提交开通申请") }}
           </el-button>
           <div v-if="isMember" class="member-done"><el-icon :size="16"><Check /></el-icon><span>PRO 会员有效期至 {{ memberExpiryText }}，续费将在当前到期日后顺延</span></div>
         </div>
       </div>
     </section>
 
-<footer class="up-footer">链算 Pro · 会员由管理员确认收款后自动开通 · 如有疑问请联系客服</footer>
+<footer class="up-footer">链算 Pro · 工作日 2 小时内人工核验到账后自动开通 · 如有疑问请联系客服</footer>
   </div>
 </template>
 
@@ -334,17 +291,14 @@ onBeforeUnmount(() => {
 
 .pay-info { display: flex; flex-direction: column; justify-content: center; }
 
-.pay-amount, .pay-order {
+.pay-amount {
   display: flex; align-items: center; gap: 12px; padding: 12px 0;
 }
-.pay-amount span, .pay-order span { color: var(--muted); font-size: 14px; }
+.pay-amount span { color: var(--muted); font-size: 14px; }
 .pay-amount strong { font-size: 36px; color: var(--brand); }
-.pay-order code { font-size: 14px; background: var(--brand-soft); padding: 4px 10px; border-radius: 6px; }
 
 .pay-note { font-size: 13px; color: var(--muted); line-height: 1.7; margin: 0; }
-.proof-upload { display: grid; gap: 10px; margin-top: 16px; }
-.proof-upload small { color: var(--muted); line-height: 1.5; }
-.proof-preview { width: 100%; max-height: 180px; object-fit: contain; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.audit-hint { margin: 16px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .member-done {
   display: flex; align-items: center; gap: 8px;
   margin-top: 16px; padding: 14px 16px;

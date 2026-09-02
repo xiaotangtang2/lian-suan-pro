@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Promotion, Lock } from '@element-plus/icons-vue'
 import { supabase } from '../lib/supabase.js'
 import { useRouter } from 'vue-router'
+import { trackCalculation } from '../utils/analytics.js'
 
 const props = defineProps({ isMember: Boolean })
 const router = useRouter()
@@ -52,6 +53,7 @@ async function calculate() {
     const data = await res.json()
     if (data.error) { ElMessage.error(data.error); return }
     result.value = data.result
+    trackCalculation('ai')
   } catch (e) {
     ElMessage.error('请求失败：' + (e.message || '网络错误'))
   } finally {

@@ -4,6 +4,7 @@ import { Delete, CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { copyText, loadLocal, saveLocal } from '../utils/storage'
 import { evaluateExpression } from '../lib/calculations.js'
+import { trackCalculation } from '../utils/analytics.js'
 
 const expression = ref('')
 const result = ref('0')
@@ -17,7 +18,7 @@ const press = key => {
   else if (key === '⌫') expression.value = expression.value.slice(0,-1)
   else expression.value += key
 }
-const calculate = () => { try { const value=evaluate(expression.value); result.value=String(value); history.value.unshift({ expression:expression.value, result:value, time:new Date().toLocaleString() }); history.value=history.value.slice(0,30); saveLocal('lc-calc-history',history.value) } catch { ElMessage.error('表达式格式不正确') } }
+const calculate = () => { try { const value=evaluate(expression.value); result.value=String(value); history.value.unshift({ expression:expression.value, result:value, time:new Date().toLocaleString() }); history.value=history.value.slice(0,30); saveLocal('lc-calc-history',history.value); trackCalculation('basic') } catch { ElMessage.error('表达式格式不正确') } }
 const onKey = e => { if (/^[\d.+\-*/()%]$/.test(e.key)) press(e.key); else if(e.key==='Enter') calculate(); else if(e.key==='Backspace') press('⌫'); else if(e.key==='Escape') press('C') }
 const display = computed(() => expression.value || '输入算式')
 onMounted(()=>window.addEventListener('keydown',onKey)); onUnmounted(()=>window.removeEventListener('keydown',onKey))

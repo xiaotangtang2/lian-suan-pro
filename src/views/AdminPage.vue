@@ -1,7 +1,7 @@
 ﻿<script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Refresh, Check, View, Close, UserFilled } from '@element-plus/icons-vue'
+import { ArrowLeft, Refresh, Check, Close, UserFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
@@ -16,6 +16,8 @@ const orders = ref([])
 const loading = ref(false)
 const visitorLoading = ref(false)
 const todayVisitors = ref({ account_visitors: 0, anonymous_visitors: 0, total_visitors: 0 })
+const activityLoading = ref(false)
+const recentActivities = ref([])
 const aiLoading = ref(false)
 const aiSaving = ref(false)
 const aiLimitDirty = ref(false)
@@ -31,13 +33,6 @@ const statusMap = {
   paid: { text: '已开通', type: 'success' },
   cancelled: { text: '已取消', type: 'info' },
   rejected: { text: '已驳回', type: 'danger' },
-}
-
-async function viewProof(order) {
-  if (!order.proof_path) return ElMessage.warning('该订单没有付款凭证')
-  const { data, error } = await supabase.storage.from('payment-proofs').createSignedUrl(order.proof_path, 300)
-  if (error) return ElMessage.error('凭证加载失败：' + error.message)
-  window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
 }
 
 async function rejectOrder(order) {
@@ -85,6 +80,34 @@ async function loadTodayVisitors() {
     console.warn('读取今日访客统计失败', error.message)
   } finally {
     visitorLoading.value = false
+  }
+}
+
+const activityLabels = {
+  page_view: '访问页面',
+  calculation_completed: '完成计算',
+  save_quote_click: '点击保存报价',
+  payment_application_submitted: '提交会员申请',
+}
+
+function activityTarget(row) {
+  if (row.event_name === 'page_view') return row.page_path || '未知页面'
+  if (row.tool_slug) return `工具：${row.tool_slug}`
+  return '会员开通页'
+}
+
+async function loadRecentActivities() {
+  if (!isAdmin.value) return
+  activityLoading.value = true
+  try {
+    const { data, error } = await supabase.rpc('get_recent_visitor_activity', { p_limit: 80 })
+    if (error) throw error
+    recentActivities.value = data || []
+  } catch (error) {
+    // 迁移尚未执行时保留其他管理功能；上线后刷新即可开始显示。
+    console.warn('读取最近访客行为失败', error.message)
+  } finally {
+    activityLoading.value = false
   }
 }
 
@@ -138,6 +161,7 @@ async function saveDailyAiLimit() {
 function refreshDashboard() {
   loadOrders()
   loadTodayVisitors()
+  loadRecentActivities()
   loadAiDashboard()
 }
 
@@ -184,7 +208,7 @@ onBeforeUnmount(() => {
         <div>
           <p class="admin-kicker">ORDER CONSOLE</p>
           <h1>会员订单管理</h1>
-          <p>确认收款后，客户页面会自动解锁并显示 PRO 会员标记。</p>
+          <p>用户提交开通申请后，由管理员核对到账并确认；无需截图或用户填写订单号。</p>
         </div>
         <div class="admin-actions">
           <div class="online-stat" :class="{ 'is-offline': !isConnected }" :title="isConnected ? '按正在连接的网站标签页统计' : '实时通道连接中或暂不可用'">
@@ -245,14 +269,10 @@ onBeforeUnmount(() => {
           <el-table-column prop="pay_method" label="支付方式" width="100">
             <template #default="{ row }">{{ row.pay_method === 'wechat' ? '微信' : '支付宝' }}</template>
           </el-table-column>
-          <el-table-column prop="order_no" label="订单号" min-width="130" />
           <el-table-column label="状态" width="90">
             <template #default="{ row }">
               <el-tag :type="statusMap[row.status]?.type || 'info'" size="small">{{ statusMap[row.status]?.text || row.status }}</el-tag>
             </template>
-          </el-table-column>
-          <el-table-column label="凭证" width="90">
-            <template #default="{ row }"><el-button v-if="row.proof_path" text type="primary" :icon="View" @click="viewProof(row)">查看</el-button><span v-else>-</span></template>
           </el-table-column>
           <el-table-column prop="rejection_reason" label="驳回原因" min-width="150" show-overflow-tooltip />
           <el-table-column label="操作" width="210" fixed="right">
@@ -272,6 +292,31 @@ onBeforeUnmount(() => {
           </el-table-column>
         </el-table>
         </div>
+
+        <section class="activity-panel" v-loading="activityLoading">
+          <div class="activity-panel-head">
+            <div>
+              <p class="admin-kicker">VISITOR ACTIVITY</p>
+              <h2>最近访客行为</h2>
+              <p>只记录页面、工具和动作，不记录报价输入、账号标识或支付材料。</p>
+            </div>
+            <el-button text :icon="Refresh" @click="loadRecentActivities">刷新记录</el-button>
+          </div>
+          <el-table :data="recentActivities" size="small" stripe empty-text="暂无访客行为记录">
+            <el-table-column label="时间" min-width="170">
+              <template #default="{ row }">{{ new Date(row.occurred_at).toLocaleString('zh-CN', { hour12: false }) }}</template>
+            </el-table-column>
+            <el-table-column label="来源" width="100">
+              <template #default="{ row }">{{ row.visitor_kind === 'account' ? '账号访客' : '匿名访客' }}</template>
+            </el-table-column>
+            <el-table-column label="动作" min-width="130">
+              <template #default="{ row }">{{ activityLabels[row.event_name] || row.event_name }}</template>
+            </el-table-column>
+            <el-table-column label="页面 / 工具" min-width="220">
+              <template #default="{ row }">{{ activityTarget(row) }}</template>
+            </el-table-column>
+          </el-table>
+        </section>
       </div>
     </main>
   </div>
@@ -334,12 +379,17 @@ onBeforeUnmount(() => {
 .admin-table { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
 .order-filters{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:var(--muted);font-size:13px}
 .done-text { color: var(--muted); font-size: 13px; }
+.activity-panel { margin-top: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.activity-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.activity-panel-head h2 { margin: 0 0 5px; font-size: 18px; }
+.activity-panel-head p:not(.admin-kicker) { margin: 0; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 600px) {
   .admin-main { padding: 24px 12px 48px; }
   .admin-head { flex-direction: column; align-items: stretch; }
   .admin-actions { justify-content: space-between; flex-wrap: wrap; }
   .ai-panel-head { flex-direction: column; }
+  .activity-panel-head { flex-direction: column; }
   .ai-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>
