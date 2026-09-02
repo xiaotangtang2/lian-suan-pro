@@ -7,7 +7,7 @@ import router from './router'
 import './styles.css'
 import { useAuth } from './stores/auth.js'
 import { supabase } from './lib/supabase.js'
-import { trackDailyVisit } from './utils/analytics.js'
+import { trackDailyVisit, trackEvent } from './utils/analytics.js'
 
 async function bootstrap() {
   const auth = useAuth()
@@ -26,6 +26,15 @@ async function bootstrap() {
   // 先恢复会话再挂载路由，未登录时由守卫直接跳登录页，避免首屏闪现首页
   await auth.restoreSession()
   trackDailyVisit({ isAdmin: auth.isAdmin.value })
+
+  // 仅记录公开页面路径与页面代号；管理员访问不计入访客行为。
+  router.afterEach((to) => {
+    if (auth.isAdmin.value || to.meta.trackVisit === false) return
+    trackEvent('page_view', {
+      path: to.path,
+      page: typeof to.name === 'string' ? to.name : 'unknown',
+    })
+  })
 
   const app = createApp(App)
   app.use(ElementPlus)

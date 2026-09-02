@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase.js'
 
 const visitorKey = 'lc-visitor-id'
 const visitMarkerPrefix = 'lc-daily-visit'
+const calculationMarkerPrefix = 'lc-calculation-recorded'
 
 function visitorId() {
   let id = localStorage.getItem(visitorKey)
@@ -29,6 +30,18 @@ export async function trackEvent(eventName, properties = {}) {
       visitor_id: visitorId(), user_id: user?.id ?? null, event_name: eventName, properties,
     })
   } catch {}
+}
+
+// 实时工具会随输入变化重算；同一浏览器会话内每个工具只记一次“完成计算”，避免把编辑过程刷成大量记录。
+export function trackCalculation(tool) {
+  try {
+    const markerKey = `${calculationMarkerPrefix}-${tool}`
+    if (sessionStorage.getItem(markerKey)) return
+    sessionStorage.setItem(markerKey, '1')
+  } catch {
+    // 存储不可用时仍尝试记录一次，不影响计算功能。
+  }
+  trackEvent('calculation_completed', { tool })
 }
 
 /**
