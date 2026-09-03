@@ -80,7 +80,7 @@ async function sendMail() {
 <style scoped>
 .contact-page {
   min-height: 100vh;
-  background: radial-gradient(circle at 80% 0, rgba(23,107,91,.08), transparent 35%), #f3f5f9;
+  background: radial-gradient(circle at 82% 0, rgba(23,105,213,.11), transparent 30%), radial-gradient(circle at 8% 8%, rgba(15,148,136,.07), transparent 24%), var(--surface);
 }
 .dark .contact-page { background: radial-gradient(circle at 80% 0, rgba(79,196,168,.08), transparent 35%), #0e1219; }
 
@@ -103,7 +103,7 @@ async function sendMail() {
 }
 .contact-tip, .contact-form-card {
   background: var(--card); border: 1px solid var(--line);
-  border-radius: 16px; padding: 28px;
+  border-radius: 20px; padding: 28px; box-shadow: 0 14px 30px rgba(25,47,89,.055);
 }
 .contact-tip { display: flex; flex-direction: column; }
 .contact-icon {

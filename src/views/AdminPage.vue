@@ -323,10 +323,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.admin-page {
-  min-height: 100vh;
-  background: #f3f5f9;
-}
+.admin-page { min-height: 100vh; background: radial-gradient(circle at 86% 0,rgba(23,105,213,.1),transparent 27%),var(--surface); }
 .dark .admin-page { background: #0e1219; }
 
 .admin-topbar {
@@ -376,10 +373,10 @@ onBeforeUnmount(() => {
 .ai-metric b { color: var(--brand); font-size: 21px; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .ai-metric .metric-danger { color: #d94b4b; }
 .ai-metric.ai-rule b { font-size: 15px; }
-.admin-table { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.admin-table { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: 0 14px 30px rgba(25,47,89,.05); }
 .order-filters{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px;color:var(--muted);font-size:13px}
 .done-text { color: var(--muted); font-size: 13px; }
-.activity-panel { margin-top: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.activity-panel { margin-top: 16px; padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: 0 14px 30px rgba(25,47,89,.05); }
 .activity-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .activity-panel-head h2 { margin: 0 0 5px; font-size: 18px; }
 .activity-panel-head p:not(.admin-kicker) { margin: 0; color: var(--muted); font-size: 12px; }

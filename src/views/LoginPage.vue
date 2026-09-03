@@ -81,7 +81,7 @@ async function onSubmit() {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: radial-gradient(circle at 80% 0, rgba(23,107,91,.1), transparent 35%), #f3f5f9;
+  background: radial-gradient(circle at 82% 0, rgba(23,105,213,.12), transparent 31%), radial-gradient(circle at 8% 8%, rgba(15,148,136,.07), transparent 24%), var(--surface);
 }
 .dark .auth-page { background: radial-gradient(circle at 80% 0, rgba(79,196,168,.08), transparent 35%), #0e1219; }
 
@@ -90,9 +90,9 @@ async function onSubmit() {
   max-width: 400px;
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 40px 36px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 20px 48px rgba(25,47,89,.12);
 }
 
 .auth-header { text-align: center; margin-bottom: 28px; }
