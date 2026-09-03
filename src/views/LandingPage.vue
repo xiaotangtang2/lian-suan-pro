@@ -1,49 +1,117 @@
 <script setup>
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { ArrowRight, Check, Van, TrendCharts, Timer, Switch, Lock } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { trackEvent } from '../utils/analytics.js'
-
-const router = useRouter()
-const tools = [
-  ['logistics-quote', Van, '物流成本报价', '成本、损耗、税费、利润率与阶梯运费一次算清。'],
-  ['irr', TrendCharts, '真实 IRR', '看清分期背后的真实年化资金成本。'],
-  ['workdays', Timer, '工时工作日', '班次工时、加班与排除周末的工作日统计。'],
-  ['unit-converter', Switch, '物流单位换算', '重量、体积、CBM 和材积快捷换算。'],
-]
-function go(path, event) { trackEvent(event); router.push(path === '/login' ? { path: '/login', query: { entry: 'landing' } } : path) }
-function scrollToTools() { trackEvent('free_start_click'); document.querySelector('#free-tools')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+const router=useRouter()
+const motionEnabled=ref(false)
+const motionSupported=typeof window!=='undefined'&&'DeviceOrientationEvent' in window
+let touchMoved=false
+let motionButton=null
+let freeStartButton=null
+let freeStartHandler=null
+const cardCleanups=[]
+const tools=[['logistics-quote',Van,'物流成本报价','成本、损耗、税费、利润率与阶梯运费一次算清。'],['irr',TrendCharts,'真实 IRR','看清分期背后的真实年化资金成本。'],['workdays',Timer,'工时工作日','班次工时、加班与排除周末的工作日统计。'],['unit-converter',Switch,'物流单位换算','重量、体积、CBM 和材积快捷换算。']]
+function go(path,event){trackEvent(event);router.push(path==='/login'?{path:'/login',query:{entry:'landing'}}:path)}
+function scrollToTools(){trackEvent('free_start_click');document.querySelector('#free-tools')?.scrollIntoView({behavior:'smooth',block:'start'})}
+function tiltCard(event){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return
+  if(event.pointerType==='touch'&&!event.currentTarget.hasPointerCapture(event.pointerId))return
+  const card=event.currentTarget,rect=card.getBoundingClientRect()
+  const x=(event.clientX-rect.left)/rect.width-.5, y=(event.clientY-rect.top)/rect.height-.5
+  card.style.setProperty('--tilt-x',`${-y*13}deg`)
+  card.style.setProperty('--tilt-y',`${x*15}deg`)
+  card.style.setProperty('--glow-x',`${(x+.5)*100}%`)
+  card.style.setProperty('--glow-y',`${(y+.5)*100}%`)
+}
+function resetTilt(event){
+  const card=event.currentTarget
+  if(event.pointerId!==undefined&&card.hasPointerCapture?.(event.pointerId))card.releasePointerCapture(event.pointerId)
+  card.classList.remove('is-tilting')
+  card.style.setProperty('--tilt-x','0deg')
+  card.style.setProperty('--tilt-y','0deg')
+}
+function startTilt(event){
+  const card=event.currentTarget
+  // 入场动画结束后仍会占用 transform；悬浮时释放它，交给鼠标跟随倾斜。
+  card.style.animation='none'
+  card.classList.add('is-tilting')
+}
+function pressCard(event){
+  if(event.pointerType!=='touch')return
+  touchMoved=false
+  event.currentTarget.setPointerCapture(event.pointerId)
+  startTilt(event)
+  tiltCard(event)
+}
+function moveCard(event){
+  if(event.pointerType==='touch'&&event.currentTarget.hasPointerCapture(event.pointerId))touchMoved=true
+  tiltCard(event)
+}
+function openTool(tool){
+  if(touchMoved){touchMoved=false;return}
+  go('/tools/'+tool[0],'tool_preview_click')
+}
+function onOrientation(event){
+  if(!motionEnabled.value||event.gamma==null||event.beta==null)return
+  const tiltY=Math.max(-12,Math.min(12,event.gamma*.45))
+  const tiltX=Math.max(-10,Math.min(10,(event.beta-45)*-.25))
+  document.querySelectorAll('.tool-preview').forEach(card=>{
+    card.style.animation='none'
+    card.classList.add('motion-tilting')
+    card.style.setProperty('--tilt-x',`${tiltX}deg`)
+    card.style.setProperty('--tilt-y',`${tiltY}deg`)
+    card.style.setProperty('--glow-x',`${50+tiltY*2}%`)
+    card.style.setProperty('--glow-y',`${50-tiltX*2}%`)
+  })
+}
+async function enableMotion(){
+  if(!motionSupported)return ElMessage.info('当前设备不支持方向感应')
+  try{
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      const permission=await DeviceOrientationEvent.requestPermission()
+      if(permission!=='granted')throw new Error('denied')
+    }
+    motionEnabled.value=true
+    if(motionButton){motionButton.textContent='体感倾斜已开启';motionButton.classList.add('active')}
+    window.addEventListener('deviceorientation',onOrientation,{passive:true})
+    ElMessage.success('体感倾斜已开启')
+  }catch{ElMessage.warning('未获得方向感应权限，可继续使用触摸倾斜')}
+}
+onMounted(()=>{
+  freeStartButton=[...document.querySelectorAll('.landing-nav button')].find(button=>button.textContent?.trim()==='免费开始')
+  const toolsSection=[...document.querySelectorAll('.landing-section')].find(section=>section.querySelector('.section-copy p')?.textContent?.trim()==='常用工具')
+  if(toolsSection)toolsSection.id='free-tools'
+  freeStartHandler=event=>{event.preventDefault();event.stopImmediatePropagation();scrollToTools()}
+  freeStartButton?.addEventListener('click',freeStartHandler,true)
+  document.querySelectorAll('.tool-preview').forEach(card=>{
+    const down=event=>pressCard(event)
+    const move=event=>moveCard(event)
+    const end=event=>resetTilt(event)
+    const stopClick=event=>{if(touchMoved){event.preventDefault();event.stopImmediatePropagation();touchMoved=false}}
+    card.addEventListener('pointerdown',down)
+    card.addEventListener('pointermove',move)
+    card.addEventListener('pointerup',end)
+    card.addEventListener('pointercancel',end)
+    card.addEventListener('click',stopClick,true)
+    cardCleanups.push(()=>{card.removeEventListener('pointerdown',down);card.removeEventListener('pointermove',move);card.removeEventListener('pointerup',end);card.removeEventListener('pointercancel',end);card.removeEventListener('click',stopClick,true)})
+  })
+  if(motionSupported){
+    motionButton=document.createElement('button')
+    motionButton.type='button'
+    motionButton.className='motion-toggle'
+    motionButton.textContent='开启体感倾斜'
+    motionButton.addEventListener('click',enableMotion)
+    document.querySelector('.tool-grid')?.before(motionButton)
+  }
+})
+onBeforeUnmount(()=>{
+  window.removeEventListener('deviceorientation',onOrientation)
+  cardCleanups.forEach(cleanup=>cleanup())
+  motionButton?.remove()
+  if(freeStartButton&&freeStartHandler)freeStartButton.removeEventListener('click',freeStartHandler,true)
+})
 </script>
-
-<template>
-  <div class="landing">
-    <header class="landing-nav">
-      <router-link to="/" class="landing-brand"><img src="/favicon.png" alt="链算 Pro" />链算 Pro</router-link>
-      <nav aria-label="账户操作"><el-button text @click="go('/login', 'login_click')">登录</el-button><el-button type="primary" @click="scrollToTools">免费开始</el-button></nav>
-    </header>
-    <main>
-      <section class="landing-hero">
-        <div class="hero-chip"><span></span> 为物流供应链而生的计算工具</div><p class="eyebrow">LOGISTICS BUSINESS TOOLKIT</p>
-        <h1>物流报价算得准，<em>每单利润看得清。</em></h1>
-        <p class="landing-lead">把复杂的报价、工时和资金成本，整理成一份清晰、可复用的经营答案。基础功能免费，数据优先保存在你的浏览器。</p>
-        <div class="landing-cta"><el-button type="primary" size="large" :icon="ArrowRight" @click="go('/tools/logistics-quote', 'hero_quote_click')">免费试算物流报价</el-button><el-button size="large" @click="go('/register', 'hero_register_click')">创建免费账户</el-button></div>
-        <div class="trust-line"><span>无需安装</span><span>本地优先</span><span>手机电脑都能用</span></div>
-      </section>
-      <section id="free-tools" class="landing-section tools-section">
-        <div class="section-heading"><div><p class="eyebrow">常用工具</p><h2>先算一笔，再决定要不要注册。</h2></div><p>用一个简单的结果，替代反复猜测。</p></div>
-        <div class="tool-grid"><button v-for="tool in tools" :key="tool[0]" class="tool-preview" @click="go('/tools/' + tool[0], 'tool_preview_click')"><el-icon><component :is="tool[1]" /></el-icon><h3>{{ tool[2] }}</h3><p>{{ tool[3] }}</p><span>立即试算 <ArrowRight /></span></button></div>
-      </section>
-      <section class="landing-section benefits"><div class="benefits-copy"><p class="eyebrow">PRO 会员</p><h2>算一单免费；批量报价、导出报价单和长期复用，交给 Pro</h2><p class="muted">月度与年度会员功能完全一致；年度会员约省 18%，折合 ¥23.75/月。</p></div><ul><li><Check /> Excel 批量导出</li><li><Check /> 保存自定义公式</li><li><Check /> AI 自然语言计算</li><li><Check /> 工作日 2 小时内人工审核</li></ul><el-button type="primary" @click="go('/upgrade', 'landing_upgrade_click')"><Lock /> 查看会员方案</el-button></section>
-      <section class="landing-section faq"><div class="section-heading"><div><p class="eyebrow">常见问题</p><h2>把关键信息说清楚。</h2></div></div><el-collapse><el-collapse-item title="我的计算数据会上传吗？" name="1">基础计算记录、模板和主题偏好优先保存在当前浏览器。AI 计算仅在你主动提交问题时发送到 AI 服务。</el-collapse-item><el-collapse-item title="付款后多久开通？" name="2">完成支付后提交开通申请，管理员会在工作日 2 小时内核对到账；通过后自动开通会员。</el-collapse-item><el-collapse-item title="会员到期后会怎样？" name="3">高级功能会自动重新锁定。提前续费会从当前到期日继续顺延。</el-collapse-item></el-collapse></section>
-    </main>
-    <footer>链算 Pro · <router-link to="/contact">联系我们</router-link> · <router-link to="/privacy">隐私说明</router-link></footer>
-  </div>
-</template>
-
-<style scoped>
-.landing{min-height:100vh;overflow:hidden;background:radial-gradient(circle at 88% 5%,rgba(15,148,136,.14),transparent 24%),radial-gradient(circle at 10% 10%,rgba(23,105,213,.1),transparent 30%),var(--surface)}.landing-nav{height:76px;max-width:1160px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}.landing-nav nav{display:flex;align-items:center;gap:6px}.landing-brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--text);text-decoration:none;font-size:17px}.landing-brand img{width:36px;height:36px;border-radius:11px;box-shadow:0 8px 18px rgba(23,105,213,.18)}
-.landing-hero{max-width:920px;margin:auto;padding:84px 24px 88px;text-align:center}.hero-chip{display:inline-flex;gap:8px;align-items:center;border:1px solid #cbdcf7;background:rgba(255,255,255,.78);padding:7px 12px;border-radius:999px;color:#31547e;font-size:13px;font-weight:700}.hero-chip span{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(15,148,136,.12)}.eyebrow{margin:18px 0 10px;color:var(--brand);font-weight:800;font-size:12px;letter-spacing:.14em}.landing-hero h1{margin:0;font-size:clamp(42px,6.5vw,72px);line-height:1.06;letter-spacing:-.065em}.landing-hero em{font-style:normal;color:var(--brand)}.landing-lead{max-width:680px;margin:22px auto 0;color:var(--muted);font-size:17px;line-height:1.85}.landing-cta{display:flex;justify-content:center;gap:12px;margin:30px 0}.trust-line{display:flex;justify-content:center;gap:20px;color:var(--muted);font-size:13px}.trust-line span::before{content:'✓';margin-right:6px;color:var(--accent);font-weight:800}
-.landing-section{max-width:1160px;margin:auto;padding:54px 24px}.tools-section{padding-top:38px}.section-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:24px}.section-heading .eyebrow{margin:0 0 9px}.section-heading h2,.benefits h2{margin:0;font-size:32px;letter-spacing:-.04em}.section-heading>p{max-width:290px;margin:0;color:var(--muted);font-size:14px;line-height:1.7}.tool-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.tool-preview{position:relative;display:flex;min-height:238px;flex-direction:column;align-items:flex-start;border:1px solid var(--line);border-radius:20px;padding:24px;background:var(--card);box-shadow:0 12px 24px rgba(25,47,89,.035);color:var(--text);text-align:left;cursor:pointer;transition:border-color .2s ease,box-shadow .2s ease,transform .2s ease}.tool-preview:hover{border-color:#a8c5f4;box-shadow:0 18px 34px rgba(25,47,89,.11);transform:translateY(-4px)}.tool-preview .el-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:var(--brand-soft);color:var(--brand);font-size:22px}.tool-preview h3{margin:22px 0 8px;font-size:18px}.tool-preview p{margin:0;color:var(--muted);font-size:14px;line-height:1.7}.tool-preview span{display:flex;align-items:center;gap:3px;margin-top:auto;color:var(--brand);font-size:13px;font-weight:800}.tool-preview span :deep(svg){width:16px}
-.benefits{display:grid;grid-template-columns:1.15fr .95fr auto;gap:30px;align-items:center;margin-top:30px;padding:38px;border:1px solid #cbdcf7;border-radius:24px;background:linear-gradient(118deg,#eff6ff 0%,#f7fcfb 100%)}.benefits .eyebrow{margin:0 0 10px}.benefits h2{font-size:28px}.muted{margin:12px 0 0;color:var(--muted);font-size:14px;line-height:1.7}.benefits ul{display:grid;grid-template-columns:1fr 1fr;gap:11px 16px;list-style:none;margin:0;padding:0}.benefits li{display:flex;align-items:center;gap:7px;font-size:14px;white-space:nowrap}.benefits li :deep(svg){width:16px;color:var(--accent)}
-.faq{max-width:940px;padding-top:76px;padding-bottom:72px}.faq :deep(.el-collapse){border-color:var(--line);border-radius:18px;overflow:hidden;background:var(--card);box-shadow:0 12px 26px rgba(25,47,89,.04)}.faq :deep(.el-collapse-item__header){min-height:64px;padding:0 22px;background:var(--card);font-size:15px;font-weight:700}.faq :deep(.el-collapse-item__wrap){padding:0 22px;background:var(--card)}.faq :deep(.el-collapse-item__content){padding-bottom:19px;color:var(--muted);line-height:1.8}footer{text-align:center;padding:34px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}footer a{color:var(--brand);text-decoration:none;font-weight:700}
-@media(max-width:820px){.tool-grid{grid-template-columns:repeat(2,1fr)}.benefits{grid-template-columns:1fr}.benefits ul{max-width:480px}}@media(max-width:600px){.landing-nav{height:68px;padding:0 18px}.landing-brand{font-size:16px}.landing-hero{padding:56px 18px 64px}.landing-hero h1{font-size:42px}.landing-lead{font-size:15px}.landing-cta{flex-direction:column}.landing-cta .el-button{width:100%;margin:0}.trust-line{gap:10px;flex-wrap:wrap;font-size:12px}.landing-section{padding:42px 18px}.section-heading{align-items:flex-start;flex-direction:column;gap:10px}.section-heading h2,.benefits h2{font-size:27px}.tool-grid{grid-template-columns:1fr}.tool-preview{min-height:210px}.benefits{margin:0 18px;padding:28px}.benefits ul{grid-template-columns:1fr}.faq{padding-top:56px}}
-</style>
+<template><div class="landing"><header class="landing-nav"><router-link to="/" class="landing-brand"><img src="/favicon.png" alt="链算 Pro"/>链算 Pro</router-link><div><el-button text @click="go('/login','login_click')">登录</el-button><el-button type="primary" @click="go('/register','register_click')">免费开始</el-button></div></header><main><section class="landing-hero"><p>LOGISTICS BUSINESS TOOLKIT</p><h1>物流报价算得准，<em>每单利润看得清。</em></h1><div class="landing-lead">面向物流供应链和小商户的商业计算工具。基础功能免费，计算数据优先保存在你的浏览器。</div><div class="landing-cta"><el-button type="primary" size="large" :icon="ArrowRight" @click="go('/tools/logistics-quote','hero_quote_click')">免费试算物流报价</el-button><el-button size="large" @click="go('/register','hero_register_click')">创建免费账户</el-button></div><div class="trust-line"><span>✓ 无需安装</span><span>✓ 本地优先</span><span>✓ 手机电脑都能用</span></div></section><section class="landing-section"><div class="section-copy"><p>常用工具</p><h2>先算一笔，再决定要不要注册。</h2></div><div class="tool-grid"><button v-for="tool in tools" :key="tool[0]" class="tool-preview" @pointerenter="startTilt" @pointermove="tiltCard" @pointerleave="resetTilt" @click="go('/tools/'+tool[0],'tool_preview_click')"><el-icon><component :is="tool[1]"/></el-icon><h3>{{ tool[2] }}</h3><p>{{ tool[3] }}</p><span>立即试算 <ArrowRight /></span></button></div></section><section class="landing-section benefits"><div><p>PRO 会员</p><h2>算一单免费；批量报价、导出报价单和长期复用，交给 Pro</h2><p class="muted">月度与年度会员功能完全一致；年度会员约省 18%，折合 ¥23.75/月。</p></div><ul><li><Check/> Excel 批量导出</li><li><Check/> 保存自定义公式</li><li><Check/> AI 自然语言计算</li><li><Check/> 工作日 2 小时内人工审核</li></ul><el-button type="primary" @click="go('/upgrade','landing_upgrade_click')"><Lock/> 查看会员方案</el-button></section><section class="landing-section faq"><div class="section-copy"><p>常见问题</p><h2>把关键信息说清楚。</h2></div><el-collapse><el-collapse-item title="我的计算数据会上传吗？" name="1">基础计算记录、模板和主题偏好优先保存在当前浏览器。AI 计算仅在你主动提交问题时发送到 AI 服务。</el-collapse-item><el-collapse-item title="付款后多久开通？" name="2">完成支付后提交开通申请，管理员会在工作日 2 小时内核对到账；通过后自动开通会员。</el-collapse-item><el-collapse-item title="会员到期后会怎样？" name="3">高级功能会自动重新锁定。提前续费会从当前到期日继续顺延。</el-collapse-item></el-collapse></section></main><footer>链算 Pro · <router-link to="/contact">联系我们</router-link> · <router-link to="/privacy">隐私说明</router-link></footer></div></template>
+<style scoped>.landing{min-height:100vh;background:radial-gradient(circle at 85% 0,rgba(25,148,121,.12),transparent 32%);overflow:hidden}.landing-nav{height:72px;max-width:1120px;margin:auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between}.landing-brand{display:flex;align-items:center;gap:10px;font-weight:800;color:inherit;text-decoration:none}.landing-brand img{width:34px;height:34px;border-radius:9px}.landing-hero,.landing-section{max-width:1120px;margin:auto;padding:72px 24px}.landing-hero{text-align:center;max-width:900px;animation:landing-rise .65s cubic-bezier(.16,.82,.26,1) both}.landing-hero>p,.section-copy>p,.benefits>div>p:first-child{color:var(--brand);font-weight:800;font-size:12px;letter-spacing:.14em}.landing-hero h1{font-size:clamp(38px,6vw,68px);letter-spacing:-.06em;line-height:1.04;margin:14px 0}.landing-hero em{font-style:normal;color:var(--brand)}.landing-lead,.muted{color:var(--muted);font-size:17px;line-height:1.8}.landing-cta{display:flex;justify-content:center;gap:12px;margin:28px 0}.trust-line{display:flex;justify-content:center;gap:18px;color:var(--muted);font-size:13px}.landing-section{padding-top:38px}.section-copy h2,.benefits h2{font-size:32px;margin:8px 0 26px}.tool-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;perspective:900px}.tool-preview{--tilt-x:0deg;--tilt-y:0deg;--glow-x:50%;--glow-y:50%;position:relative;overflow:hidden;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 94%,transparent);border-radius:16px;padding:22px;text-align:left;color:inherit;cursor:pointer;transform:translateY(0) rotateX(0) rotateY(0);transform-style:preserve-3d;transform-origin:center;will-change:transform;transition:transform .42s cubic-bezier(.16,.82,.26,1),box-shadow .35s ease,border-color .25s ease;animation:landing-rise .55s calc(var(--card-index,0)*.07s + .12s) cubic-bezier(.16,.82,.26,1) both}.tool-preview::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at var(--glow-x) var(--glow-y),rgba(79,196,168,.28),transparent 42%);mix-blend-mode:screen;transition:opacity .18s}.tool-preview:nth-child(1){--card-index:1}.tool-preview:nth-child(2){--card-index:2}.tool-preview:nth-child(3){--card-index:3}.tool-preview:nth-child(4){--card-index:4}.tool-preview.is-tilting{transform:translateY(-12px) scale(1.025) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));transition:transform .07s linear,box-shadow .2s ease,border-color .2s ease}.tool-preview.is-tilting::after{opacity:1}.tool-preview:hover{border-color:var(--brand);box-shadow:0 28px 46px rgba(23,107,91,.24),0 10px 18px rgba(25,36,55,.10)}.tool-preview .el-icon,.tool-preview h3,.tool-preview p,.tool-preview span{position:relative;z-index:1;transform:translateZ(20px)}.tool-preview .el-icon{color:var(--brand);font-size:24px}.tool-preview h3{margin:16px 0 8px}.tool-preview p{color:var(--muted);line-height:1.6;font-size:14px}.tool-preview span{color:var(--brand);display:flex;gap:4px;align-items:center;font-size:13px;font-weight:700}.tool-preview span :deep(svg){width:16px;height:16px;stroke-width:2.2;flex:none;transform:translateZ(26px)}.benefits{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,.9fr) auto;align-items:center;gap:24px;padding:34px 38px;background:color-mix(in srgb,var(--brand-soft) 65%,var(--card));border-radius:22px;margin-top:40px}.benefits h2{margin-bottom:8px}.benefits ul{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;list-style:none;padding:0;margin:0}.benefits li{display:flex;gap:7px;align-items:center;font-size:14px;white-space:nowrap}.benefits li svg{color:var(--brand);width:16px;height:16px;flex:none}.faq{max-width:940px;padding-top:52px;padding-bottom:60px}.faq :deep(.el-collapse){border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--card) 94%,transparent);box-shadow:0 10px 28px rgba(25,36,55,.04)}.faq :deep(.el-collapse-item__header){padding:0 24px;font-size:16px}.faq :deep(.el-collapse-item__wrap){padding:0 24px}.faq :deep(.el-collapse-item__content){padding-bottom:18px;line-height:1.8}footer{text-align:center;padding:42px;color:var(--muted);font-size:13px}footer a{color:var(--brand);text-decoration:none}@keyframes landing-rise{from{opacity:0;transform:translateY(18px);filter:blur(3px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}@media(max-width:760px){.tool-grid,.benefits{grid-template-columns:1fr}.landing-hero,.landing-section{padding:48px 18px}.landing-cta,.trust-line{flex-wrap:wrap}.landing-cta .el-button{width:100%}.benefits{padding:28px 24px}.benefits ul{grid-template-columns:1fr}.faq{padding-top:44px;padding-bottom:48px}.faq :deep(.el-collapse-item__header),.faq :deep(.el-collapse-item__wrap){padding-left:16px;padding-right:16px}}</style>

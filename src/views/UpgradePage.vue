@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft, Check, Wallet } from '@element-plus/icons-vue'
+import { ArrowLeft, Check } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../stores/auth.js'
@@ -163,7 +163,7 @@ onBeforeUnmount(() => {
             />
             <!-- 图片没放时的占位提示 -->
             <div v-show="!qrLoaded" class="qr-placeholder">
-              <el-icon class="qr-icon" :size="42"><Wallet /></el-icon>
+              <span class="qr-icon">{{ qrTab === 'wechat' ? '💚' : '💙' }}</span>
               <span class="qr-text">{{ qrTab === 'wechat' ? '微信收款码' : '支付宝收款码' }}</span>
               <span class="qr-hint">把收款码截图放到<br>public/qr-wechat.png<br>public/qr-alipay.png</span>
             </div>
@@ -196,7 +196,10 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.upgrade-page { min-height: 100vh; background: radial-gradient(circle at 82% 2%,rgba(23,105,213,.11),transparent 28%),radial-gradient(circle at 12% 10%,rgba(15,148,136,.08),transparent 25%),var(--surface); }
+.upgrade-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at 80% 0, rgba(23,107,91,.08), transparent 35%), #f3f5f9;
+}
 .dark .upgrade-page { background: radial-gradient(circle at 80% 0, rgba(79,196,168,.08), transparent 35%), #0e1219; }
 
 .up-topbar {
@@ -223,9 +226,9 @@ onBeforeUnmount(() => {
   position: relative;
   background: var(--card); border: 2px solid var(--line);
   border-radius: 18px; padding: 32px 24px;
-  cursor: pointer; box-shadow: 0 12px 26px rgba(25,47,89,.04); transition: all .25s;
+  cursor: pointer; transition: all .25s;
 }
-.pricing-card:hover { border-color: var(--brand); transform: translateY(-4px); box-shadow: 0 18px 36px rgba(25,47,89,.1); }
+.pricing-card:hover { border-color: var(--brand); transform: translateY(-2px); }
 .pricing-card.active {
   border-color: var(--brand);
   background: color-mix(in srgb, var(--brand-soft) 60%, var(--card));
@@ -267,7 +270,7 @@ onBeforeUnmount(() => {
 
 .pay-card {
   background: var(--card); border: 1px solid var(--line);
-  border-radius: 20px; padding: 32px; box-shadow: 0 14px 30px rgba(25,47,89,.055);
+  border-radius: 18px; padding: 32px;
   display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
 }
 
@@ -282,7 +285,7 @@ onBeforeUnmount(() => {
   border: 2px dashed var(--line); border-radius: 16px;
   justify-content: center; color: var(--muted);
 }
-.qr-icon { color: var(--brand); }
+.qr-icon { font-size: 48px; }
 .qr-text { font-size: 14px; font-weight: 600; }
 .qr-hint { font-size: 11px; text-align: center; line-height: 1.6; }
 
