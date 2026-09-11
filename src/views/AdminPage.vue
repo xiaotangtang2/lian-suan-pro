@@ -18,6 +18,9 @@ const visitorLoading = ref(false)
 const todayVisitors = ref({ account_visitors: 0, anonymous_visitors: 0, total_visitors: 0 })
 const activityLoading = ref(false)
 const recentActivities = ref([])
+const funnelLoading = ref(false)
+const funnelDays = ref(1)
+const funnelMetrics = ref([])
 const aiLoading = ref(false)
 const aiSaving = ref(false)
 const aiLimitDirty = ref(false)
@@ -87,13 +90,19 @@ const activityLabels = {
   page_view: '访问页面',
   calculation_completed: '完成计算',
   save_quote_click: '点击保存报价',
+  article_tool_click: '文章跳转工具',
+  tool_login_click: '点击登录保存',
+  free_start_click: '点击免费开始',
+  hero_quote_click: '点击试算报价',
+  registration_submitted: '提交注册',
+  login_success: '登录成功',
   payment_application_submitted: '提交会员申请',
 }
 
 function activityTarget(row) {
-  if (row.event_name === 'page_view') return row.page_path || '未知页面'
   if (row.tool_slug) return `工具：${row.tool_slug}`
-  return '会员开通页'
+  if (row.page_path) return row.page_path
+  return '未知页面'
 }
 
 async function loadRecentActivities() {
@@ -108,6 +117,21 @@ async function loadRecentActivities() {
     console.warn('读取最近访客行为失败', error.message)
   } finally {
     activityLoading.value = false
+  }
+}
+
+/** 管理员只读取汇总数字，用来观察从浏览到开通的行为趋势。 */
+async function loadVisitorFunnel() {
+  if (!isAdmin.value) return
+  funnelLoading.value = true
+  try {
+    const { data, error } = await supabase.rpc('get_visitor_funnel_summary', { p_days: funnelDays.value })
+    if (error) throw error
+    funnelMetrics.value = data || []
+  } catch (error) {
+    console.warn('读取访客转化概览失败', error.message)
+  } finally {
+    funnelLoading.value = false
   }
 }
 
@@ -162,6 +186,7 @@ function refreshDashboard() {
   loadOrders()
   loadTodayVisitors()
   loadRecentActivities()
+  loadVisitorFunnel()
   loadAiDashboard()
 }
 
@@ -317,6 +342,28 @@ onBeforeUnmount(() => {
             </el-table-column>
           </el-table>
         </section>
+
+        <section class="funnel-panel" v-loading="funnelLoading">
+          <div class="activity-panel-head">
+            <div>
+              <p class="admin-kicker">VISITOR FUNNEL</p>
+              <h2>访客转化概览</h2>
+              <p>按动作统计近 {{ funnelDays === 1 ? '24 小时' : '7 天' }} 的事件与匿名去重访客数；它用于观察趋势，不追踪个人身份。</p>
+            </div>
+            <el-radio-group v-model="funnelDays" aria-label="访客概览时间范围" @change="loadVisitorFunnel">
+              <el-radio-button :label="1">24 小时</el-radio-button>
+              <el-radio-button :label="7">7 天</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div v-if="funnelMetrics.length" class="funnel-grid">
+            <div v-for="metric in funnelMetrics" :key="metric.metric_key" class="funnel-metric">
+              <span>{{ metric.metric_label }}</span>
+              <b>{{ Number(metric.event_count).toLocaleString() }}</b>
+              <small>{{ Number(metric.visitor_count).toLocaleString() }} 位访客</small>
+            </div>
+          </div>
+          <el-empty v-else description="暂未收到可汇总的访客行为记录" :image-size="72" />
+        </section>
       </div>
     </main>
   </div>
@@ -383,6 +430,10 @@ onBeforeUnmount(() => {
 .activity-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .activity-panel-head h2 { margin: 0 0 5px; font-size: 18px; }
 .activity-panel-head p:not(.admin-kicker) { margin: 0; color: var(--muted); font-size: 12px; }
+.funnel-panel { margin-top: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+.funnel-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.funnel-metric { min-width: 0; padding: 14px; border: 1px solid color-mix(in srgb, var(--brand) 13%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--brand-soft) 46%, var(--card)); }
+.funnel-metric span,.funnel-metric small { display:block; color:var(--muted); font-size:12px; line-height:1.5; }.funnel-metric b { display:block; margin:5px 0 2px; color:var(--brand); font-size:24px; line-height:1; font-variant-numeric:tabular-nums; }
 
 @media (max-width: 600px) {
   .admin-main { padding: 24px 12px 48px; }
@@ -391,5 +442,6 @@ onBeforeUnmount(() => {
   .ai-panel-head { flex-direction: column; }
   .activity-panel-head { flex-direction: column; }
   .ai-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .funnel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

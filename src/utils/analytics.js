@@ -4,6 +4,11 @@ const visitorKey = 'lc-visitor-id'
 const visitMarkerPrefix = 'lc-daily-visit'
 const calculationMarkerPrefix = 'lc-calculation-recorded'
 
+// 仅保留 pathname，明确不采集查询参数、报价输入或页面片段中的任何内容。
+function currentPath() {
+  try { return window.location.pathname || '/' } catch { return '/' }
+}
+
 function visitorId() {
   let id = localStorage.getItem(visitorKey)
   if (!id) {
@@ -27,7 +32,10 @@ export async function trackEvent(eventName, properties = {}) {
   try {
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('analytics_events').insert({
-      visitor_id: visitorId(), user_id: user?.id ?? null, event_name: eventName, properties,
+      visitor_id: visitorId(),
+      user_id: user?.id ?? null,
+      event_name: eventName,
+      properties: { path: currentPath(), ...properties },
     })
   } catch {}
 }

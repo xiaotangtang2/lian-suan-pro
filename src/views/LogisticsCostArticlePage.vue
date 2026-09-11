@@ -1,5 +1,10 @@
 <script setup>
 import { RouterLink } from 'vue-router'
+import { trackEvent } from '../utils/analytics.js'
+
+function trackArticleToolClick() {
+  trackEvent('article_tool_click', { tool: 'logistics-quote' })
+}
 </script>
 
 <template>
@@ -8,7 +13,7 @@ import { RouterLink } from 'vue-router'
       <p class="eyebrow">物流报价指南 · 链算 Pro</p>
       <h1>物流成本报价计算器怎么用？</h1>
       <p class="lead">报价不能只看进货价。把运费、包装、损耗、税费和目标利润率一起算进去，才能知道每一单真正应该卖多少钱。</p>
-      <RouterLink class="article-cta" to="/tools/logistics-quote/">打开物流成本报价计算器 →</RouterLink>
+      <RouterLink class="article-cta" to="/tools/logistics-quote/" @click="trackArticleToolClick">打开物流成本报价计算器 →</RouterLink>
     </header>
 
     <section class="article-content">
@@ -43,7 +48,7 @@ import { RouterLink } from 'vue-router'
       <div class="article-next">
         <strong>现在就算一笔真实报价</strong>
         <p>输入你的成本参数，快速查看建议售价和每单利润。</p>
-        <RouterLink to="/tools/logistics-quote/">免费试算物流报价 →</RouterLink>
+        <RouterLink to="/tools/logistics-quote/" @click="trackArticleToolClick">免费试算物流报价 →</RouterLink>
       </div>
     </section>
   </article>

@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth.js'
 import { User, Lock } from '@element-plus/icons-vue'
+import { trackEvent } from '../utils/analytics.js'
 
 const router = useRouter()
 const { login } = useAuth()
@@ -24,6 +25,7 @@ async function onSubmit() {
     error.value = result.error
     return
   }
+  trackEvent('login_success')
   router.replace('/workspace')
 }
 </script>
