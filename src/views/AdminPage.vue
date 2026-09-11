@@ -18,6 +18,7 @@ const visitorLoading = ref(false)
 const todayVisitors = ref({ account_visitors: 0, anonymous_visitors: 0, total_visitors: 0 })
 const activityLoading = ref(false)
 const recentActivities = ref([])
+const activityRange = ref('day')
 const funnelLoading = ref(false)
 const funnelDays = ref(1)
 const funnelMetrics = ref([])
@@ -29,6 +30,15 @@ const aiSettings = ref({ daily_limit: 20, input_char_limit: 2000, output_token_l
 const dailyAiLimit = ref(20)
 const statusFilter = ref('pending')
 const filteredOrders = computed(() => statusFilter.value === 'all' ? orders.value : orders.value.filter(order => order.status === statusFilter.value))
+const activityGroups = computed(() => {
+  const groups = new Map()
+  for (const row of recentActivities.value) {
+    const key = activityDayKey(row.occurred_at)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(row)
+  }
+  return [...groups.entries()].map(([key, rows]) => ({ key, rows }))
+})
 let timer = null
 
 const statusMap = {
@@ -105,11 +115,37 @@ function activityTarget(row) {
   return '未知页面'
 }
 
+function activityDayKey(value) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(value))
+  const values = Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
+function activityDayLabel(key) {
+  const today = activityDayKey(new Date())
+  const yesterday = activityDayKey(new Date(Date.now() - 24 * 60 * 60 * 1000))
+  if (key === today) return '今天'
+  if (key === yesterday) return '昨天'
+  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(`${key}T12:00:00+08:00`))
+}
+
+function activityRangeStart() {
+  const now = Date.now()
+  const days = { day: 1, week: 7, month: 30 }[activityRange.value]
+  return days ? new Date(now - days * 24 * 60 * 60 * 1000).toISOString() : null
+}
+
 async function loadRecentActivities() {
   if (!isAdmin.value) return
   activityLoading.value = true
   try {
-    const { data, error } = await supabase.rpc('get_recent_visitor_activity', { p_limit: 80 })
+    const { data, error } = await supabase.rpc('get_recent_visitor_activity', {
+      p_limit: activityRange.value === 'all' ? 200 : 120,
+      p_start_at: activityRangeStart(),
+      p_end_at: null,
+    })
     if (error) throw error
     recentActivities.value = data || []
   } catch (error) {
@@ -323,24 +359,38 @@ onBeforeUnmount(() => {
             <div>
               <p class="admin-kicker">VISITOR ACTIVITY</p>
               <h2>最近访客行为</h2>
-              <p>只记录页面、工具和动作，不记录报价输入、账号标识或支付材料。</p>
+              <p>按中国时区分天显示。只记录页面、工具和动作，不记录报价输入、账号标识或支付材料。</p>
             </div>
-            <el-button text :icon="Refresh" @click="loadRecentActivities">刷新记录</el-button>
+            <div class="activity-actions">
+              <el-radio-group v-model="activityRange" aria-label="访客记录时间范围" @change="loadRecentActivities">
+                <el-radio-button label="day">24 小时</el-radio-button>
+                <el-radio-button label="week">7 天</el-radio-button>
+                <el-radio-button label="month">30 天</el-radio-button>
+                <el-radio-button label="all">全部</el-radio-button>
+              </el-radio-group>
+              <el-button text :icon="Refresh" @click="loadRecentActivities">刷新记录</el-button>
+            </div>
           </div>
-          <el-table :data="recentActivities" size="small" stripe empty-text="暂无访客行为记录">
-            <el-table-column label="时间" min-width="170">
-              <template #default="{ row }">{{ new Date(row.occurred_at).toLocaleString('zh-CN', { hour12: false }) }}</template>
-            </el-table-column>
-            <el-table-column label="来源" width="100">
-              <template #default="{ row }">{{ row.visitor_kind === 'account' ? '账号访客' : '匿名访客' }}</template>
-            </el-table-column>
-            <el-table-column label="动作" min-width="130">
-              <template #default="{ row }">{{ activityLabels[row.event_name] || row.event_name }}</template>
-            </el-table-column>
-            <el-table-column label="页面 / 工具" min-width="220">
-              <template #default="{ row }">{{ activityTarget(row) }}</template>
-            </el-table-column>
-          </el-table>
+          <template v-if="activityGroups.length">
+            <section v-for="group in activityGroups" :key="group.key" class="activity-day-group">
+              <div class="activity-day-title"><h3>{{ activityDayLabel(group.key) }}</h3><span>{{ group.key }} · {{ group.rows.length }} 条记录</span></div>
+              <el-table :data="group.rows" size="small" stripe>
+                <el-table-column label="时间" min-width="120">
+                  <template #default="{ row }">{{ new Date(row.occurred_at).toLocaleTimeString('zh-CN', { hour12: false }) }}</template>
+                </el-table-column>
+                <el-table-column label="来源" width="100">
+                  <template #default="{ row }">{{ row.visitor_kind === 'account' ? '账号访客' : '匿名访客' }}</template>
+                </el-table-column>
+                <el-table-column label="动作" min-width="130">
+                  <template #default="{ row }">{{ activityLabels[row.event_name] || row.event_name }}</template>
+                </el-table-column>
+                <el-table-column label="页面 / 工具" min-width="220">
+                  <template #default="{ row }">{{ activityTarget(row) }}</template>
+                </el-table-column>
+              </el-table>
+            </section>
+          </template>
+          <el-empty v-else description="这个时间范围内暂时没有访客行为记录" :image-size="72" />
         </section>
 
         <section class="funnel-panel" v-loading="funnelLoading">
@@ -430,6 +480,9 @@ onBeforeUnmount(() => {
 .activity-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .activity-panel-head h2 { margin: 0 0 5px; font-size: 18px; }
 .activity-panel-head p:not(.admin-kicker) { margin: 0; color: var(--muted); font-size: 12px; }
+.activity-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.activity-day-group + .activity-day-group { margin-top:24px; padding-top:24px; border-top:1px solid var(--line); }
+.activity-day-title { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 10px; }.activity-day-title h3{margin:0;font-size:15px;}.activity-day-title span{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;}
 .funnel-panel { margin-top: 16px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
 .funnel-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .funnel-metric { min-width: 0; padding: 14px; border: 1px solid color-mix(in srgb, var(--brand) 13%, var(--line)); border-radius: 12px; background: color-mix(in srgb, var(--brand-soft) 46%, var(--card)); }
@@ -441,6 +494,8 @@ onBeforeUnmount(() => {
   .admin-actions { justify-content: space-between; flex-wrap: wrap; }
   .ai-panel-head { flex-direction: column; }
   .activity-panel-head { flex-direction: column; }
+  .activity-actions { align-items:flex-start; justify-content:flex-start; }
+  .activity-day-title { align-items:flex-start; flex-direction:column; gap:3px; }
   .ai-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .funnel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
