@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth.js'
 import { supabase } from '../lib/supabase.js'
 import { User, Lock } from '@element-plus/icons-vue'
+import { trackEvent } from '../utils/analytics.js'
 
 const router = useRouter()
 const { register, isLoggedIn, restoreSession } = useAuth()
@@ -53,6 +54,8 @@ async function onSubmit() {
   const result = await register(form.email.trim(), form.password)
   loading.value = false
   if (!result.ok) { error.value = result.error; return }
+  // 仅记录注册动作本身；不会记录邮箱、密码或任何身份信息。
+  trackEvent('registration_submitted')
   if (result.needConfirm) {
     registeredEmail.value = form.email.trim()
     waitingConfirm.value = true
